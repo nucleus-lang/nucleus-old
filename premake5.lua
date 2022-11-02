@@ -2,7 +2,7 @@ workspace "Nucleus"
 	staticruntime "on"
 	configurations { "Release" }
 	platforms { "x86_64", "x86" }
-	startproject "Pickaxe"
+	startproject "Nucleus"
 	warnings "off"
 
 
