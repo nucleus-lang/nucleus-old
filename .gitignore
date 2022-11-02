@@ -259,7 +259,7 @@ paket-files/
 !premake5-windows.exe
 !Nucleus.exe
 *.exe.old
-!geo
+!Nucleus
 
 # RenderDoc Captures
 *.rdc
