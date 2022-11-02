@@ -256,9 +256,8 @@ paket-files/
 
 # Executables
 *.exe
-!Tools/WinLLDB/lldb.exe
 !premake5-windows.exe
-!geo.exe
+!Nucleus.exe
 *.exe.old
 !geo
 
