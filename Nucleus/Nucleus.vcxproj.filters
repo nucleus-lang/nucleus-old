@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="CompileItself">
+      <UniqueIdentifier>{7596BF7D-E156-3BB4-AA91-843116118090}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files">
+      <UniqueIdentifier>{18202D0D-8434-55BE-4DB6-F81DB98951EF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files\Image">
+      <UniqueIdentifier>{0AB4036D-7669-7C62-FF5D-76396B127366}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files\XML">
+      <UniqueIdentifier>{78B28A20-E41C-3F97-2D5B-F03C99041DEC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files\ZIP">
+      <UniqueIdentifier>{7ABA8A20-E624-3F97-2F63-F03C9B0C1DEC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files\ZLIB">
+      <UniqueIdentifier>{D815E231-C4CD-237F-2DD5-FCDA19ACBE6F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="MainConsole">
+      <UniqueIdentifier>{DD1D130C-49D3-8B01-D2C7-85D83E7C8205}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="String">
+      <UniqueIdentifier>{DC9BEED1-C83D-19A8-B1F8-2CFC9D39A0F8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CompileItself\CompileItself.h">
+      <Filter>CompileItself</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\Files.h">
+      <Filter>Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\Image\lodepng.h">
+      <Filter>Files\Image</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\XML\pugiconfig.hpp">
+      <Filter>Files\XML</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\XML\pugixml.hpp">
+      <Filter>Files\XML</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZIP\crypt.h">
+      <Filter>Files\ZIP</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZIP\ioapi.h">
+      <Filter>Files\ZIP</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZIP\mztools.h">
+      <Filter>Files\ZIP</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZIP\unzip.h">
+      <Filter>Files\ZIP</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZIP\zip.h">
+      <Filter>Files\ZIP</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\crc32.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\deflate.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\gzguts.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\inffast.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\inffixed.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\inflate.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\inftrees.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\trees.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\zconf.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\zlib.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="Files\ZLIB\zutil.h">
+      <Filter>Files\ZLIB</Filter>
+    </ClInclude>
+    <ClInclude Include="MainConsole\MainConsole.h">
+      <Filter>MainConsole</Filter>
+    </ClInclude>
+    <ClInclude Include="String\StringAPI.h">
+      <Filter>String</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="CompileItself\CompileItself.cpp">
+      <Filter>CompileItself</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\Files.cpp">
+      <Filter>Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\Image\lodepng.cpp">
+      <Filter>Files\Image</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\XML\pugixml.cpp">
+      <Filter>Files\XML</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZIP\ioapi.c">
+      <Filter>Files\ZIP</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZIP\mztools.c">
+      <Filter>Files\ZIP</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZIP\unzip.c">
+      <Filter>Files\ZIP</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZIP\zip.c">
+      <Filter>Files\ZIP</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\adler32.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\compress.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\crc32.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\deflate.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\gzclose.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\gzlib.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\gzread.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\gzwrite.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\infback.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\inffast.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\inflate.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\inftrees.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\trees.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\uncompr.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="Files\ZLIB\zutil.c">
+      <Filter>Files\ZLIB</Filter>
+    </ClCompile>
+    <ClCompile Include="MainConsole\MainConsole.cpp">
+      <Filter>MainConsole</Filter>
+    </ClCompile>
+    <ClCompile Include="String\StringAPI.cpp">
+      <Filter>String</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+</Project>
