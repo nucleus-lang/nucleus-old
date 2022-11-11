@@ -30,14 +30,8 @@ void MainConsole::RunCommand(std::string cmd, bool spawnInput)
     }
     else if(cmd == "--run-test")
     {
-    	std::cout << "Lexer Test...\n";
-    	PrintArrows();
-
-    	std::getline(std::cin, GetInput());
-
-    	std::cout << "Input Result: " << GetInput() << std::endl;
-
-    	std::vector<Language::Token> t = Language::Lexer::Start(GetInput());
+    	std::cout << "Lexer Test from \"main.nk\"...";
+    	std::vector<int> t = Language::Lexer::Start(Files::Read("main.nk"));
     	Language::Lexer::TokenTesting(t);
     }
 

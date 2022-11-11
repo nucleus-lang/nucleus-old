@@ -21,13 +21,15 @@ void Language::Error::IllegalWord(std::string s, int line, int column)
 int Language::Lexer::position = -1;
 char Language::Lexer::currentChar = '\0';
 std::string Language::Lexer::mainText;
-std::vector<Language::Token> Language::Lexer::tokenList;
+std::vector<int> Language::Lexer::tokenList;
+Language::GetNameFor Language::Lexer::getNameFor;
+std::vector<std::pair<Language::GetNameFor, std::string>> Language::Lexer::allNames;
 
 int Language::Position::line;
 int Language::Position::column;
 int Language::Position::idx;
 
-std::vector<Language::Token> Language::Lexer::Start(std::string text)
+std::vector<int> Language::Lexer::Start(std::string text)
 {
 	mainText = text;
 
@@ -109,6 +111,9 @@ void Language::Lexer::GetWords()
 		currentChar != ' ' &&
 		currentChar != '(' &&
 		currentChar != ')' &&
+		currentChar != ';' &&
+		currentChar != '{' &&
+		currentChar != '}' &&
 		currentChar != ';')
 	{
 		word += currentChar;
@@ -116,9 +121,44 @@ void Language::Lexer::GetWords()
 	}
 
 	if(word == "int")
+	{
 		tokenList.push_back(Language::Token::Integer);
+		Lexer::getNameFor = Language::GetNameFor::VariableName;
+	}
 	else if(word == "float")
+	{
 		tokenList.push_back(Language::Token::Float);
+		Lexer::getNameFor = Language::GetNameFor::VariableName;
+	}
+	else if(word == "func")
+	{
+		tokenList.push_back(Language::Token::Function);
+		Lexer::getNameFor = Language::GetNameFor::FunctionName;
+	}
+	else if(word == "return")
+	{
+		tokenList.push_back(Language::Token::Return);
+	}
+	else if(Lexer::getNameFor != Language::GetNameFor::Disabled)
+	{
+		bool nameExists = false;
+		for(auto i : Lexer::allNames)
+		{
+			if(i.second == word)
+			{
+				nameExists = true;
+				break;
+			}
+		}
+
+		if(!nameExists)
+			Lexer::allNames.push_back(std::make_pair(Lexer::getNameFor, word));
+
+		Lexer::getNameFor = Language::GetNameFor::Disabled;
+
+		tokenList.push_back(Language::Token::Name);
+		tokenList.push_back(Lexer::allNames.size() - 1);
+	}
 	else
 	{
 		Language::Error::IllegalWord(word, Language::Position::line, Language::Position::column);
@@ -145,32 +185,67 @@ void Language::Lexer::TokenTreatment()
 		}
 		else if(currentChar == '-')
 		{
-			tokenList.push_back(Token::Subtract);
+			if(position + 1 < mainText.size())
+			{
+				if(mainText[position + 1] == '>')
+				{
+					tokenList.push_back(Token::Arrow);
+					Step();
+				}
+				else
+					tokenList.push_back(Token::Subtract);
+			}
+			else
+				tokenList.push_back(Token::Subtract);
+
 			Step();
 		}
 		else if(currentChar == '*')
 		{
 			tokenList.push_back(Token::Multiply);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else if(currentChar == '/')
 		{
 			tokenList.push_back(Token::Divide);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else if(currentChar == '(')
 		{
 			tokenList.push_back(Token::LeftParenthesis);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else if(currentChar == ')')
 		{
 			tokenList.push_back(Token::RightParenthesis);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+			Step();
+		}
+		else if(currentChar == '{')
+		{
+			tokenList.push_back(Token::LeftBracket);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+			Step();
+		}
+		else if(currentChar == '}')
+		{
+			tokenList.push_back(Token::RightBracket);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+			Step();
+		}
+		else if(currentChar == ';')
+		{
+			tokenList.push_back(Token::DotComma);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else if(std::isdigit(currentChar))
 		{
 			tokenList.push_back(Lexer::NumberTreatment());
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else
@@ -183,7 +258,7 @@ void Language::Lexer::TokenTreatment()
 	}
 }
 
-void Language::Lexer::TokenTesting(std::vector<Language::Token> t)
+void Language::Lexer::TokenTesting(std::vector<int> t)
 {
 	/*
 	Function = 1,
@@ -204,35 +279,56 @@ void Language::Lexer::TokenTesting(std::vector<Language::Token> t)
 	Float = 12,
 	*/
 
-	for(auto i : t)
+	for(int i = 0; i < t.size(); i++)
     {
-    	if(i == Language::Token::Function)
+    	if(t[i] == Language::Token::Function)
     		std::cout << "Function\n";
-    	else if(i == Language::Token::Import)
+    	else if(t[i] == Language::Token::Import)
     		std::cout << "Import\n";
 
-    	else if(i == Language::Token::Identifier)
+    	else if(t[i] == Language::Token::Identifier)
     		std::cout << "Identifier\n";
-    	else if(i == Language::Token::Number)
+    	else if(t[i] == Language::Token::Number)
     		std::cout << "Number\n";
 
-    	else if(i == Language::Token::Add)
+    	else if(t[i] == Language::Token::Add)
     		std::cout << "Add\n";
-    	else if(i == Language::Token::Subtract)
+    	else if(t[i] == Language::Token::Subtract)
     		std::cout << "Subtract\n";
-    	else if(i == Language::Token::Multiply)
+    	else if(t[i] == Language::Token::Multiply)
     		std::cout << "Multiply\n";
-    	else if(i == Language::Token::Divide)
+    	else if(t[i] == Language::Token::Divide)
     		std::cout << "Divide\n";
 
-    	else if(i == Language::Token::LeftParenthesis)
+    	else if(t[i] == Language::Token::LeftParenthesis)
     		std::cout << "Left Parenthesis\n";
-    	else if(i == Language::Token::RightParenthesis)
+    	else if(t[i] == Language::Token::RightParenthesis)
     		std::cout << "Right Parenthesis\n";
 
-    	else if(i == Language::Token::Integer)
+    	else if(t[i] == Language::Token::Integer)
     		std::cout << "Integer\n";
-    	else if(i == Language::Token::Float)
+    	else if(t[i] == Language::Token::Float)
     		std::cout << "Float\n";
+
+    	else if(t[i] == Language::Token::Arrow)
+    		std::cout << "Arrow\n";
+
+    	else if(t[i] == Language::Token::Name)
+    	{
+    		std::cout << "Name (";
+    		if(t[i + 1] < t.size())
+    			std::cout << Lexer::allNames[int(t[i + 1])].second << ")\n";
+    	}
+
+    	else if(t[i] == Language::Token::LeftBracket)
+    		std::cout << "Left Bracket\n";
+    	else if(t[i] == Language::Token::RightBracket)
+    		std::cout << "Right Bracket\n";
+
+    	else if(t[i] == Language::Token::Return)
+    		std::cout << "Return\n";
+
+    	else if(t[i] == Language::Token::DotComma)
+    		std::cout << "Dot Comma\n";
     }
 }

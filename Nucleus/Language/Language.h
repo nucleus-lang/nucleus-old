@@ -29,6 +29,22 @@ struct Language
 
 		Integer = 11,
 		Float = 12,
+
+		Arrow = 13,
+		Name = 14,
+
+		LeftBracket = 15,
+		RightBracket = 16,
+		Return = 17,
+		DotComma = 18,
+	};
+
+	enum GetNameFor
+	{
+		Disabled,
+		FunctionName,
+		ClassName,
+		VariableName
 	};
 
 	struct Position
@@ -50,10 +66,11 @@ struct Language
 		static int position;
 		static char currentChar;
 		static std::string mainText;
-		static std::vector<Language::Token> tokenList;
-		static bool addName;
+		static std::vector<int> tokenList;
+		static Language::GetNameFor getNameFor;
+		static std::vector<std::pair<Language::GetNameFor, std::string>> allNames;
 
-		static std::vector<Language::Token> Start(std::string text);
+		static std::vector<int> Start(std::string text);
 
 		static Token NumberTreatment();
 
@@ -63,7 +80,7 @@ struct Language
 
 		static void GetWords();
 
-		static void TokenTesting(std::vector<Language::Token> t);
+		static void TokenTesting(std::vector<int> t);
 	};
 };
 
