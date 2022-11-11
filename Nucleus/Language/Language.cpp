@@ -25,6 +25,7 @@ std::vector<int> Language::Lexer::tokenList;
 Language::GetNameFor Language::Lexer::getNameFor;
 std::vector<std::pair<Language::GetNameFor, std::string>> Language::Lexer::allNames;
 bool Language::Lexer::isStringOpen = false;
+std::vector<std::string> Language::Lexer::allNumbers;
 
 int Language::Position::line;
 int Language::Position::column;
@@ -69,7 +70,7 @@ Language::Token Language::Lexer::NumberTreatment()
 		}
 		else
 		{
-			std::cout << "(" << numberStr << ")\n";
+			allNumbers.push_back(numberStr);
 			position -= 1;
 			Language::Position::idx -= 1;
 			Language::Position::column -= 1;
@@ -184,7 +185,11 @@ void Language::Lexer::GetWords()
 		}
 		else
 		{
+			Lexer::allNames.push_back(std::make_pair(Language::GetNameFor::StringCnt, word));
+
 			tokenList.push_back(Language::Token::StringContent);
+			tokenList.push_back(Lexer::allNames.size() - 1);
+
 			Lexer::getNameFor = Language::GetNameFor::Disabled;
 		}
 	}
@@ -298,6 +303,7 @@ void Language::Lexer::TokenTreatment()
 		else if(std::isdigit(currentChar))
 		{
 			tokenList.push_back(Lexer::NumberTreatment());
+			tokenList.push_back(allNumbers.size() - 1);
 			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
@@ -360,7 +366,11 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     	else if(t[i] == Language::Token::Identifier)
     		std::cout << "Identifier\n";
     	else if(t[i] == Language::Token::Number)
-    		std::cout << "Number\n";
+    	{
+    		std::cout << "Number (";
+    		if(i + 1 < t.size())
+    			std::cout << Lexer::allNumbers[int(t[i + 1])] << ")\n";
+    	}
 
     	else if(t[i] == Language::Token::Add)
     		std::cout << "Add\n";
@@ -387,7 +397,7 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     	else if(t[i] == Language::Token::Name)
     	{
     		std::cout << "Name (";
-    		if(t[i + 1] < t.size())
+    		if(i + 1 < t.size())
     			std::cout << Lexer::allNames[int(t[i + 1])].second << ")\n";
     	}
 
@@ -415,6 +425,10 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     		std::cout << "Close String\n";
 
     	else if(t[i] == Language::Token::StringContent)
-    		std::cout << "String Content\n";
+    	{
+    		std::cout << "String Content (";
+    		if(i + 1 < t.size())
+    			std::cout << Lexer::allNames[int(t[i + 1])].second << ")\n";
+    	}
     }
 }

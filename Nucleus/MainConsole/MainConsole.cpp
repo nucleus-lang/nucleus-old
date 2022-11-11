@@ -1,6 +1,7 @@
 #include "MainConsole.h"
 #include "../CompileItself/CompileItself.h"
 #include "../Language/Language.h"
+#include "../Language/Compiler/Compiler.h"
 
 std::string MainConsole::_input = "";
 
@@ -30,9 +31,10 @@ void MainConsole::RunCommand(std::string cmd, bool spawnInput)
     }
     else if(cmd == "--run-test")
     {
-    	std::cout << "Lexer Test from \"main.nk\"...";
+    	std::cout << "Lexer Test from \"main.nk\"...\n";
     	std::vector<int> t = Language::Lexer::Start(Files::Read("main.nk"));
     	Language::Lexer::TokenTesting(t);
+    	Compiler::Compile();
     }
 
     if(spawnInput)

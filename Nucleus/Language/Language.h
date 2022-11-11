@@ -78,6 +78,7 @@ struct Language
 		static std::vector<int> tokenList;
 		static Language::GetNameFor getNameFor;
 		static std::vector<std::pair<Language::GetNameFor, std::string>> allNames;
+		static std::vector<std::string> allNumbers;
 		static bool isStringOpen;
 
 		static std::vector<int> Start(std::string text);
