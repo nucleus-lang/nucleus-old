@@ -37,6 +37,14 @@ struct Language
 		RightBracket = 16,
 		Return = 17,
 		DotComma = 18,
+
+		String = 19,
+		Char = 20,
+
+		OpenString = 21,
+		CloseString = 22,
+
+		StringContent = 23,
 	};
 
 	enum GetNameFor
@@ -44,7 +52,8 @@ struct Language
 		Disabled,
 		FunctionName,
 		ClassName,
-		VariableName
+		VariableName,
+		StringCnt,
 	};
 
 	struct Position
@@ -69,6 +78,7 @@ struct Language
 		static std::vector<int> tokenList;
 		static Language::GetNameFor getNameFor;
 		static std::vector<std::pair<Language::GetNameFor, std::string>> allNames;
+		static bool isStringOpen;
 
 		static std::vector<int> Start(std::string text);
 

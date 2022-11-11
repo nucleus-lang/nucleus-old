@@ -24,6 +24,7 @@ std::string Language::Lexer::mainText;
 std::vector<int> Language::Lexer::tokenList;
 Language::GetNameFor Language::Lexer::getNameFor;
 std::vector<std::pair<Language::GetNameFor, std::string>> Language::Lexer::allNames;
+bool Language::Lexer::isStringOpen = false;
 
 int Language::Position::line;
 int Language::Position::column;
@@ -108,7 +109,6 @@ void Language::Lexer::GetWords()
 		currentChar != '\t' && 
 		currentChar != '\n' && 
 		currentChar != '\r' && 
-		currentChar != ' ' &&
 		currentChar != '(' &&
 		currentChar != ')' &&
 		currentChar != ';' &&
@@ -116,6 +116,17 @@ void Language::Lexer::GetWords()
 		currentChar != '}' &&
 		currentChar != ';')
 	{
+		if(currentChar == '"')
+		{
+			if(position - 1 > -1)
+				if(mainText[position - 1] != '\\')
+					break;
+		}
+
+		if(currentChar == ' ')
+			if(!isStringOpen)
+				break;
+
 		word += currentChar;
 		Step();
 	}
@@ -130,6 +141,16 @@ void Language::Lexer::GetWords()
 		tokenList.push_back(Language::Token::Float);
 		Lexer::getNameFor = Language::GetNameFor::VariableName;
 	}
+	else if(word == "string")
+	{
+		tokenList.push_back(Language::Token::String);
+		Lexer::getNameFor = Language::GetNameFor::VariableName;
+	}
+	else if(word == "char")
+	{
+		tokenList.push_back(Language::Token::Char);
+		Lexer::getNameFor = Language::GetNameFor::VariableName;
+	}
 	else if(word == "func")
 	{
 		tokenList.push_back(Language::Token::Function);
@@ -141,33 +162,53 @@ void Language::Lexer::GetWords()
 	}
 	else if(Lexer::getNameFor != Language::GetNameFor::Disabled)
 	{
-		bool nameExists = false;
-		for(auto i : Lexer::allNames)
+		if(!isStringOpen)
 		{
-			if(i.second == word)
+			bool nameExists = false;
+			for(auto i : Lexer::allNames)
+			{
+				if(i.second == word)
+				{
+					nameExists = true;
+					break;
+				}
+			}
+
+			if(!nameExists)
+				Lexer::allNames.push_back(std::make_pair(Lexer::getNameFor, word));
+
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+
+			tokenList.push_back(Language::Token::Name);
+			tokenList.push_back(Lexer::allNames.size() - 1);
+		}
+		else
+		{
+			tokenList.push_back(Language::Token::StringContent);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+		}
+	}
+	else
+	{
+		bool nameExists = false;
+		for(int i = 0; i < Lexer::allNames.size(); i++)
+		{
+			if(Lexer::allNames[i].second == word)
 			{
 				nameExists = true;
+				tokenList.push_back(Language::Token::Name);
+				tokenList.push_back(i);
 				break;
 			}
 		}
 
 		if(!nameExists)
-			Lexer::allNames.push_back(std::make_pair(Lexer::getNameFor, word));
-
-		Lexer::getNameFor = Language::GetNameFor::Disabled;
-
-		tokenList.push_back(Language::Token::Name);
-		tokenList.push_back(Lexer::allNames.size() - 1);
-	}
-	else
-	{
-		Language::Error::IllegalWord(word, Language::Position::line, Language::Position::column);
+			Language::Error::IllegalWord(word, Language::Position::line, Language::Position::column);
 	}
 
 	position -= 1;
 	Language::Position::idx -= 1;
 	Language::Position::column -= 1;
-
 }
 
 void Language::Lexer::TokenTreatment()
@@ -242,6 +283,18 @@ void Language::Lexer::TokenTreatment()
 			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
+		else if(currentChar == '"')
+		{
+			if(!isStringOpen)
+				tokenList.push_back(Token::OpenString);
+			else
+				tokenList.push_back(Token::CloseString);
+
+			isStringOpen = !isStringOpen;
+			Lexer::getNameFor = Language::GetNameFor::StringCnt;
+
+			Step();
+		}
 		else if(std::isdigit(currentChar))
 		{
 			tokenList.push_back(Lexer::NumberTreatment());
@@ -261,22 +314,40 @@ void Language::Lexer::TokenTreatment()
 void Language::Lexer::TokenTesting(std::vector<int> t)
 {
 	/*
-	Function = 1,
-	Import = 2,
+		EndOfFile = -1,
 
-	Identifier = 3,
-	Number = 4,
+		Function = 1,
+		Import = 2,
 
-	Add = 5,
-	Subtract = 6,
-	Multiply = 7,
-	Divide = 8,
+		Identifier = 3,
+		Number = 4,
 
-	LeftParenthesis = 9,
-	RightParenthesis = 10,
+		Add = 5,
+		Subtract = 6,
+		Multiply = 7,
+		Divide = 8,
 
-	Integer = 11,
-	Float = 12,
+		LeftParenthesis = 9,
+		RightParenthesis = 10,
+
+		Integer = 11,
+		Float = 12,
+
+		Arrow = 13,
+		Name = 14,
+
+		LeftBracket = 15,
+		RightBracket = 16,
+		Return = 17,
+		DotComma = 18,
+
+		String = 19,
+		Char = 20,
+
+		OpenString = 21,
+		CloseString = 22,
+
+		StringContent = 23,
 	*/
 
 	for(int i = 0; i < t.size(); i++)
@@ -330,5 +401,20 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
 
     	else if(t[i] == Language::Token::DotComma)
     		std::cout << "Dot Comma\n";
+
+    	else if(t[i] == Language::Token::String)
+    		std::cout << "String\n";
+
+    	else if(t[i] == Language::Token::Char)
+    		std::cout << "Char\n";
+
+    	else if(t[i] == Language::Token::OpenString)
+    		std::cout << "Open String\n";
+
+    	else if(t[i] == Language::Token::CloseString)
+    		std::cout << "Close String\n";
+
+    	else if(t[i] == Language::Token::StringContent)
+    		std::cout << "String Content\n";
     }
 }
