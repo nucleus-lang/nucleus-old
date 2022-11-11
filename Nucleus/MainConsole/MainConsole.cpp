@@ -38,16 +38,7 @@ void MainConsole::RunCommand(std::string cmd, bool spawnInput)
     	std::cout << "Input Result: " << GetInput() << std::endl;
 
     	std::vector<Language::Token> t = Language::Lexer::Start(GetInput());
-
-    	for(auto i : t)
-    	{
-    		if(i == Language::Token::Number)
-    			std::cout << "Language::Token::Number\n";
-    		if(i == Language::Token::Add)
-    			std::cout << "Language::Token::Add\n";
-    		if(i == Language::Token::Subtract)
-    			std::cout << "Language::Token::Subtract\n";
-    	}
+    	Language::Lexer::TokenTesting(t);
     }
 
     if(spawnInput)

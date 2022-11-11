@@ -12,6 +12,12 @@ void Language::Error::IllegalCharacter(const char c, int line, int column)
 	PrintErrorAndExit(m, line, column);
 }
 
+void Language::Error::IllegalWord(std::string s, int line, int column)
+{
+	std::string m = "The word \"" + s + "\" is unknown!";
+	PrintErrorAndExit(m, line, column);
+}
+
 int Language::Lexer::position = -1;
 char Language::Lexer::currentChar = '\0';
 std::string Language::Lexer::mainText;
@@ -92,6 +98,38 @@ void Language::Lexer::Step()
 		currentChar = '\0';
 }
 
+void Language::Lexer::GetWords()
+{
+	std::string word;
+
+	while(currentChar != '\0' && 
+		currentChar != '\t' && 
+		currentChar != '\n' && 
+		currentChar != '\r' && 
+		currentChar != ' ' &&
+		currentChar != '(' &&
+		currentChar != ')' &&
+		currentChar != ';')
+	{
+		word += currentChar;
+		Step();
+	}
+
+	if(word == "int")
+		tokenList.push_back(Language::Token::Integer);
+	else if(word == "float")
+		tokenList.push_back(Language::Token::Float);
+	else
+	{
+		Language::Error::IllegalWord(word, Language::Position::line, Language::Position::column);
+	}
+
+	position -= 1;
+	Language::Position::idx -= 1;
+	Language::Position::column -= 1;
+
+}
+
 void Language::Lexer::TokenTreatment()
 {
 	while(currentChar != '\0')
@@ -136,8 +174,65 @@ void Language::Lexer::TokenTreatment()
 			Step();
 		}
 		else
-			Language::Error::IllegalCharacter(currentChar, Language::Position::line, Language::Position::column);
+		{
+			Lexer::GetWords();
+			Step();
+		}
 
 		TokenTreatment();
 	}
+}
+
+void Language::Lexer::TokenTesting(std::vector<Language::Token> t)
+{
+	/*
+	Function = 1,
+	Import = 2,
+
+	Identifier = 3,
+	Number = 4,
+
+	Add = 5,
+	Subtract = 6,
+	Multiply = 7,
+	Divide = 8,
+
+	LeftParenthesis = 9,
+	RightParenthesis = 10,
+
+	Integer = 11,
+	Float = 12,
+	*/
+
+	for(auto i : t)
+    {
+    	if(i == Language::Token::Function)
+    		std::cout << "Function\n";
+    	else if(i == Language::Token::Import)
+    		std::cout << "Import\n";
+
+    	else if(i == Language::Token::Identifier)
+    		std::cout << "Identifier\n";
+    	else if(i == Language::Token::Number)
+    		std::cout << "Number\n";
+
+    	else if(i == Language::Token::Add)
+    		std::cout << "Add\n";
+    	else if(i == Language::Token::Subtract)
+    		std::cout << "Subtract\n";
+    	else if(i == Language::Token::Multiply)
+    		std::cout << "Multiply\n";
+    	else if(i == Language::Token::Divide)
+    		std::cout << "Divide\n";
+
+    	else if(i == Language::Token::LeftParenthesis)
+    		std::cout << "Left Parenthesis\n";
+    	else if(i == Language::Token::RightParenthesis)
+    		std::cout << "Right Parenthesis\n";
+
+    	else if(i == Language::Token::Integer)
+    		std::cout << "Integer\n";
+    	else if(i == Language::Token::Float)
+    		std::cout << "Float\n";
+    }
 }

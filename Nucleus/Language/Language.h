@@ -14,7 +14,7 @@ struct Language
 		EndOfFile = -1,
 
 		Function = 1,
-		Use = 2,
+		Import = 2,
 
 		Identifier = 3,
 		Number = 4,
@@ -42,6 +42,7 @@ struct Language
 	{
 		static void PrintErrorAndExit(std::string message, int line, int column);
 		static void IllegalCharacter(char c, int line, int column);
+		static void IllegalWord(std::string s, int line, int column);
 	};
 
 	struct Lexer
@@ -50,6 +51,7 @@ struct Language
 		static char currentChar;
 		static std::string mainText;
 		static std::vector<Language::Token> tokenList;
+		static bool addName;
 
 		static std::vector<Language::Token> Start(std::string text);
 
@@ -58,6 +60,10 @@ struct Language
 		static void Step();
 
 		static void TokenTreatment();
+
+		static void GetWords();
+
+		static void TokenTesting(std::vector<Language::Token> t);
 	};
 };
 
