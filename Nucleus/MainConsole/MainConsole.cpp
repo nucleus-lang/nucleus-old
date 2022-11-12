@@ -17,18 +17,15 @@ void MainConsole::Run()
 
 void MainConsole::RunCommand(std::string cmd, bool spawnInput)
 {
-	if(cmd == "--clear")
-	{
-		Files::ClearConsole();
-	}
-	else if(cmd == "--compile-itself")
-    {
+    if(cmd == "--clear")
+	Files::ClearConsole();
+ 
+    else if(cmd == "--compile-itself")
     	CompileItself::Compile();
-    }
+  
     else if(cmd == "--exit")
-    {
     	exit(0);
-    }
+
     else if(cmd == "--run-test")
     {
     	std::cout << "Lexer Test from \"main.nk\"...\n";
@@ -38,7 +35,7 @@ void MainConsole::RunCommand(std::string cmd, bool spawnInput)
     }
 
     if(spawnInput)
-		SpawnInputOnly();
+	SpawnInputOnly();
 }
 
 void MainConsole::SpawnInputOnly()
