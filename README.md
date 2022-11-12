@@ -1,2 +1,2 @@
 # Nucleus-Core
-The Nucleus Programming Language
+The compilation part of the `nuke` Program
