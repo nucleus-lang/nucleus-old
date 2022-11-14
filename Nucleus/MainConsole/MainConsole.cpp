@@ -2,6 +2,7 @@
 #include "../CompileItself/CompileItself.h"
 #include "../Language/Language.h"
 #include "../Language/Compiler/Compiler.h"
+#include "../Files/Files.h"
 
 std::string MainConsole::_input = "";
 
@@ -28,10 +29,24 @@ void MainConsole::RunCommand(std::string cmd, bool spawnInput)
 
     else if(cmd == "--run-test")
     {
-    	std::cout << "Lexer Test from \"main.nk\"...\n";
-    	std::vector<int> t = Language::Lexer::Start(Files::Read("main.nk"));
-    	Language::Lexer::TokenTesting(t);
-    	Compiler::Compile();
+    	std::cout << "Finding Files Test...\n";
+    	Language::Lexer::FindFiles();
+
+    	std::reverse(Language::Lexer::allFiles.begin(), Language::Lexer::allFiles.end());
+
+    	for(auto i : Language::Lexer::allFiles)
+    	{
+    		std::cout << "Lexer Test From " << Files::GetFilenameFromDirectory(i.c_str()) << " ...\n ====== \n";
+
+    		std::vector<int> t = Language::Lexer::Start(Files::Read(i.c_str()));
+    		Language::Lexer::TokenTesting(t);
+
+    		std::cout << " VVVVVV \n";
+
+    		Compiler::Compile(i);
+
+    		std::cout << " ====== \n";
+    	}
     }
 
     if(spawnInput)

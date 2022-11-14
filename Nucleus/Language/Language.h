@@ -6,6 +6,7 @@
 #include <vector>
 #include <ctype.h>
 #include "../String/StringAPI.h"
+#include "../Files/Files.h"
 
 struct Language
 {
@@ -45,6 +46,11 @@ struct Language
 		CloseString = 22,
 
 		StringContent = 23,
+
+		Variable = 24,
+		TwoDots = 25,
+
+		Equal = 26,
 	};
 
 	enum GetNameFor
@@ -80,6 +86,10 @@ struct Language
 		static std::vector<std::pair<Language::GetNameFor, std::string>> allNames;
 		static std::vector<std::string> allNumbers;
 		static bool isStringOpen;
+
+		static std::vector<std::string> allFiles;
+
+		static void FindFiles();
 
 		static std::vector<int> Start(std::string text);
 

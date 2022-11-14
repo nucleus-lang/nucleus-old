@@ -9,7 +9,7 @@ struct Compiler
 {
 	static std::string AddType(std::string& text, std::string t, bool& next);
 
-	static void Compile();
+	static void Compile(std::string url);
 };
 
 #endif

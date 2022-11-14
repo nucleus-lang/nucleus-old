@@ -1,0 +1,4 @@
+func Test() -> string
+{
+	return "Oooooh! A String!";
+}

@@ -1,4 +1,5 @@
 #include "Language.h"
+#include <experimental/filesystem>
 
 void Language::Error::PrintErrorAndExit(std::string message, int line, int column)
 {
@@ -26,16 +27,37 @@ Language::GetNameFor Language::Lexer::getNameFor;
 std::vector<std::pair<Language::GetNameFor, std::string>> Language::Lexer::allNames;
 bool Language::Lexer::isStringOpen = false;
 std::vector<std::string> Language::Lexer::allNumbers;
+std::vector<std::string> Language::Lexer::allFiles;
 
 int Language::Position::line;
 int Language::Position::column;
 int Language::Position::idx;
 
+void Language::Lexer::FindFiles()
+{
+	for(auto& p: std::experimental::filesystem::recursive_directory_iterator(std::experimental::filesystem::current_path()))
+	{
+		std::string cacheFolder = Files::GetDirectoryOf(Files::GetExecutablePath().c_str()) + "/cache";
+		std::string pathToStr = p.path().u8string();
+
+       	if(pathToStr.find(".nk") != std::string::npos && pathToStr.find(".nk.cpp") == std::string::npos)
+       	{
+       		std::cout << Files::GetFilenameFromDirectory(pathToStr.c_str()) << std::endl;
+       		Language::Lexer::allFiles.push_back(pathToStr);
+       	}
+	}
+}
+
 std::vector<int> Language::Lexer::Start(std::string text)
 {
+	Language::Lexer::tokenList.clear();
+
 	mainText = text;
 
+	position = -1;
 	Language::Position::line = 1;
+	Language::Position::idx = 0;
+	Language::Position::column = 0;
 
 	Step();
 	TokenTreatment();
@@ -115,7 +137,8 @@ void Language::Lexer::GetWords()
 		currentChar != ';' &&
 		currentChar != '{' &&
 		currentChar != '}' &&
-		currentChar != ';')
+		currentChar != ';' &&
+		currentChar != ':')
 	{
 		if(currentChar == '"')
 		{
@@ -157,9 +180,18 @@ void Language::Lexer::GetWords()
 		tokenList.push_back(Language::Token::Function);
 		Lexer::getNameFor = Language::GetNameFor::FunctionName;
 	}
+	else if(word == "var")
+	{
+		tokenList.push_back(Language::Token::Variable);
+		Lexer::getNameFor = Language::GetNameFor::FunctionName;
+	}
 	else if(word == "return")
 	{
 		tokenList.push_back(Language::Token::Return);
+	}
+	else if(word == "use")
+	{
+		tokenList.push_back(Language::Token::Import);
 	}
 	else if(Lexer::getNameFor != Language::GetNameFor::Disabled)
 	{
@@ -244,6 +276,18 @@ void Language::Lexer::TokenTreatment()
 			else
 				tokenList.push_back(Token::Subtract);
 
+			Step();
+		}
+		else if(currentChar == ':')
+		{
+			tokenList.push_back(Token::TwoDots);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
+			Step();
+		}
+		else if(currentChar == '=')
+		{
+			tokenList.push_back(Token::Equal);
+			Lexer::getNameFor = Language::GetNameFor::Disabled;
 			Step();
 		}
 		else if(currentChar == '*')
@@ -354,6 +398,8 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
 		CloseString = 22,
 
 		StringContent = 23,
+
+		Variable = 24,
 	*/
 
 	for(int i = 0; i < t.size(); i++)
@@ -369,7 +415,10 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     	{
     		std::cout << "Number (";
     		if(i + 1 < t.size())
+    		{
     			std::cout << Lexer::allNumbers[int(t[i + 1])] << ")\n";
+    			i++;
+    		}
     	}
 
     	else if(t[i] == Language::Token::Add)
@@ -398,7 +447,10 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     	{
     		std::cout << "Name (";
     		if(i + 1 < t.size())
+    		{
     			std::cout << Lexer::allNames[int(t[i + 1])].second << ")\n";
+    			i++;
+    		}
     	}
 
     	else if(t[i] == Language::Token::LeftBracket)
@@ -428,7 +480,13 @@ void Language::Lexer::TokenTesting(std::vector<int> t)
     	{
     		std::cout << "String Content (";
     		if(i + 1 < t.size())
+    		{
     			std::cout << Lexer::allNames[int(t[i + 1])].second << ")\n";
+    			i++;
+    		}
     	}
+
+    	else if(t[i] == Language::Token::Variable)
+    		std::cout << "Variable\n";
     }
 }

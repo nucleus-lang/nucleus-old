@@ -1,10 +1,9 @@
-func HelloWorld() -> string
-{
-	return "Hello World!";
-}
+use "STD";
+
+var numberExample: float = 1.0;
 
 func main() -> int
 {
-	HelloWorld();
+	Test();
 	return 0;
 }
