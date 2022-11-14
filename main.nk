@@ -1,10 +1,9 @@
-func HelloWorld() -> string
-{
-	return "Hello World!";
-}
+use "STD";
+
+var example: int = 10;
 
 func main() -> int
 {
-	HelloWorld();
+	STD.Print("Hello World!");
 	return 0;
 }

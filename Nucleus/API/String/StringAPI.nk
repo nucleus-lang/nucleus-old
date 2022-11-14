@@ -1,0 +1,14 @@
+shelf STD
+{	
+	shelf StringAPI
+	{
+		func Replace(string text, string from, string to) -> string
+		{
+			var modifiedText: string;
+
+			// Do the magic here lol
+
+			return modifiedText;
+		}
+	}
+}

@@ -1,0 +1,8 @@
+shelf STD
+{
+	func Print(string text)
+	{
+		// Coming soon(tm)
+		// I also have to add comments to this lmao
+	}
+}
