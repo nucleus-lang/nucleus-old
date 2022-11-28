@@ -1,0 +1,3 @@
+D:/GitHub Projects/NucleusTwo/CMakeFiles/Nucleus.dir
+D:/GitHub Projects/NucleusTwo/CMakeFiles/edit_cache.dir
+D:/GitHub Projects/NucleusTwo/CMakeFiles/rebuild_cache.dir
