@@ -1,0 +1,5 @@
+# ninja log v5
+10	984	6913652255220259	CMakeFiles/Nucleus.dir/Language/Lexer.cpp.obj	3565c0b21d616515
+24	1227	6913652257660334	CMakeFiles/Nucleus.dir/Language/Parser.cpp.obj	6d845129a7f111f8
+3	1781	6913652263180314	CMakeFiles/Nucleus.dir/main.cpp.obj	a11f113f3088be4b
+1782	2194	6913652267290245	Nucleus.exe	aef9d2df67666930

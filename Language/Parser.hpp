@@ -143,6 +143,7 @@ struct Parser
 	{
 		CurrentToken++;
 
+		std::unique_ptr<AST::Type> getType;
 		std::vector<std::unique_ptr<AST::Expression>> variables;
 
 		if(Lexer::Tokens[CurrentToken] != Lexer::Token::TK_LeftParent)
@@ -158,8 +159,30 @@ struct Parser
 
 		CurrentToken++;
 
-		if(Lexer::Tokens[CurrentToken] != Lexer::Token::TK_LeftBracket)
-			return LogErrorP("Expected '{' at start of function.");
+		std::cout << Lexer::GetTokenAsString(Lexer::Tokens[CurrentToken]) << "\n";
+
+		if(Lexer::Tokens[CurrentToken] == Lexer::Token::TK_Arrow)
+		{
+			CurrentToken++;
+
+			if(Lexer::Tokens[CurrentToken] == Lexer::Token::TK_Integer)
+				getType = std::make_unique<AST::Integer>(0);
+			else if(Lexer::Tokens[CurrentToken] == Lexer::Token::TK_Double)
+				getType = std::make_unique<AST::Double>(0);
+
+			CurrentToken++;
+
+			if(Lexer::Tokens[CurrentToken] == Lexer::Token::TK_LeftBracket)
+				CurrentToken++;
+			else
+				return LogErrorP("Expected '{' at start of function.");
+		}
+		else if(Lexer::Tokens[CurrentToken] == Lexer::Token::TK_LeftBracket)
+		{
+			getType = std::make_unique<AST::Void>();
+		}
+		else
+			return LogErrorP("Expected '{' or '->' at start of function.");
 
 		CurrentToken++;
 
