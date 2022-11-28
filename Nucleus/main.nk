@@ -1,9 +1,0 @@
-use "STD";
-
-var numberExample: float = 1.0;
-
-func main() -> int
-{
-	Test();
-	return 0;
-}
