@@ -5,6 +5,7 @@
 #include "llvm/IR/Verifier.h"
 #include "CodeGeneration.hpp"
 #include "Parser.hpp"
+#include "AbstractSyntaxTree.hpp"
 
 std::unique_ptr<llvm::LLVMContext> CodeGeneration::TheContext;
 std::unique_ptr<llvm::IRBuilder<>> CodeGeneration::Builder;
@@ -14,7 +15,8 @@ std::unique_ptr<llvm::legacy::FunctionPassManager> CodeGeneration::TheFPM;
 bool CodeGeneration::isPureNumber = false;
 int CodeGeneration::lastPureInt = 0;
 llvm::Value* CodeGeneration::lastLLVMInOp = nullptr;
-std::unique_ptr<llvm::JITCompiler> CodeGeneration::TheJIT;
+std::unique_ptr<llvm::orc::JITCompiler> CodeGeneration::TheJIT;
+llvm::ExitOnError CodeGeneration::ExitOnErr;
 
 llvm::Value* CodeGeneration::LogErrorV(std::string str)
 {
@@ -28,11 +30,27 @@ llvm::Function* CodeGeneration::LogErrorFLLVM(std::string str)
 	return nullptr;
 }
 
+llvm::Function* CodeGeneration::GetFunction(std::string name)
+{
+	if(auto* F = TheModule->getFunction(name))
+		return F;
+
+	auto FI = AST::FunctionProtos.find(name);
+	if(FI != AST::FunctionProtos.end())
+		return FI->second->codegen();
+
+	return nullptr;
+}
+
 void CodeGeneration::Initialize()
 {
  	// Open a new context and module.
  	TheContext = std::make_unique<llvm::LLVMContext>();
+
+ 	TheJIT = ExitOnErr(llvm::orc::JITCompiler::Create());
+
  	TheModule = std::make_unique<llvm::Module>("Nucleus", *TheContext);
+ 	TheModule->setDataLayout(TheJIT->getDataLayout());
 
  	 // Create a new builder for the module.
  	Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);

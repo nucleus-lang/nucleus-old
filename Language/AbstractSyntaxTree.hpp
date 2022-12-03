@@ -109,6 +109,8 @@ struct AST
 		llvm::Function* codegen();
 	};
 
+	static std::map<std::string, std::unique_ptr<FunctionPrototype>> FunctionProtos;
+
 	struct Function
 	{
 		std::unique_ptr<FunctionPrototype> prototype;

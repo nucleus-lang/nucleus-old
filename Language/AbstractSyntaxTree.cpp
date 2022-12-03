@@ -1,19 +1,27 @@
 #include "AbstractSyntaxTree.hpp"
 
+std::map<std::string, std::unique_ptr<AST::FunctionPrototype>> AST::FunctionProtos;
+
 llvm::Value* AST::Number::codegen()
 {
 	//std::cout << "CodeGen Number...\n";
 
 	if(isDouble)
+	{
+		CodeGeneration::isPureNumber = false;
 		return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(doubleValue));
+	}
 	else if(isFloat)
+	{
+		CodeGeneration::isPureNumber = false;
 		return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(floatValue));
+	}
 	else if(isInt)
 	{
 		//return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat((double)intValue));
 
 		llvm::Type *i32_type = llvm::IntegerType::getInt32Ty(*CodeGeneration::TheContext);
-		//CodeGeneration::lastPureInt = intValue;
+		CodeGeneration::isPureNumber = true;
 		return llvm::ConstantInt::get(i32_type, intValue, true);
 	}
 
@@ -58,10 +66,17 @@ llvm::Value* AST::Binary::codegen()
 {
 	//std::cout << "CodeGen Binary...\n";
 
-	std::vector<int> pureNumbers;
+	int pureIntCount = 0;
 
 	llvm::Value* L = lhs->codegen();
+
+	if(CodeGeneration::isPureNumber)
+		pureIntCount++;
+
 	llvm::Value* R = rhs->codegen();
+
+	if(CodeGeneration::isPureNumber)
+		pureIntCount++;
 
 	llvm::Value* opLLVM = nullptr;
 
@@ -73,7 +88,7 @@ llvm::Value* AST::Binary::codegen()
 
 	if(op == '+')
 	{
-		if(static_cast<llvm::ConstantInt*>(L) != nullptr && static_cast<llvm::ConstantInt*>(R) != nullptr)
+		if(pureIntCount == 2)
 		{
 			opLLVM = CodeGeneration::Builder->CreateAdd(L, R, "addtmp");
 		}
@@ -84,7 +99,7 @@ llvm::Value* AST::Binary::codegen()
 	}
 	else if(op == '-')
 	{
-		if(static_cast<llvm::ConstantInt*>(L) != nullptr && static_cast<llvm::ConstantInt*>(R) != nullptr)
+		if(pureIntCount == 2)
 		{
 			opLLVM = CodeGeneration::Builder->CreateSub(L, R, "subtmp");
 		}
@@ -95,7 +110,7 @@ llvm::Value* AST::Binary::codegen()
 	}
 	else if(op == '*')
 	{
-		if(static_cast<llvm::ConstantInt*>(L) != nullptr && static_cast<llvm::ConstantInt*>(R) != nullptr)
+		if(pureIntCount == 2)
 		{
 			opLLVM = CodeGeneration::Builder->CreateMul(L, R, "multmp");
 		}
@@ -183,10 +198,9 @@ llvm::Function* AST::Function::codegen()
 {
 	//std::cout << "CodeGen Function...\n";
 
-	llvm::Function* TheFunction = CodeGeneration::TheModule->getFunction(prototype->Name());
-
-	if(!TheFunction)
-		TheFunction = prototype->codegen();
+	auto &P = *prototype;
+	FunctionProtos[prototype->Name()] = std::move(prototype);
+	llvm::Function* TheFunction = CodeGeneration::GetFunction(P.Name());
 
 	if(!TheFunction)
 		return nullptr;

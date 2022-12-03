@@ -28,6 +28,13 @@ struct Parser
 		return nullptr;
 	}
 
+	static std::unique_ptr<AST::FunctionPrototype> LogErrorFP(std::string str)
+	{
+		LogError(str);
+		exit(1);
+		return nullptr;
+	}
+
 	static std::unique_ptr<AST::Expression> ParseNumber()
 	{
 		auto Result = std::make_unique<AST::Number>(Lexer::NumValString);
@@ -195,6 +202,10 @@ struct Parser
 			return LogErrorP("Expected function name in prototype");
 
 		std::string FunctionName = Lexer::IdentifierStr;
+
+		if(FunctionName == "main")
+			FunctionName = "__main";
+
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '(')
@@ -292,7 +303,14 @@ struct Parser
 	static std::unique_ptr<AST::FunctionPrototype> ParseExtern()
 	{
 		Lexer::GetNextToken();
-		return ParsePrototype();
+		auto Proto = ParsePrototype();
+
+		if(Lexer::CurrentToken != Token::TK_DotComma)
+			return LogErrorFP("Expected ';' at end of extern. Detected token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		//Lexer::GetNextToken();
+
+		return Proto;
 	}
 
 	static std::unique_ptr<AST::Function> ParseTopLevelExpression()
@@ -322,6 +340,15 @@ struct ParseTesting
 				fprintf(stderr, "Parsed a function definition:\n\n");
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
+
+				CodeGeneration::ExitOnErr(
+					CodeGeneration::TheJIT->addModule(
+						llvm::orc::ThreadSafeModule(std::move(CodeGeneration::TheModule), std::move(CodeGeneration::TheContext))));
+
+				auto ExprSymbol = CodeGeneration::ExitOnErr(CodeGeneration::TheJIT->lookup("__main"));
+
+				double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
+      			fprintf(stderr, "Evaluated to %f\n", FP());
 			}
 
 			std::cout << "Finished Definition...\n";
@@ -341,7 +368,10 @@ struct ParseTesting
 				fprintf(stderr, "Parsed an extern:");
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
-				return;
+
+				AST::FunctionProtos[ProtoAST->Name()] = std::move(ProtoAST);
+				
+				std::cout << "Finished Extern...\n";
 			}
 		}
 		else

@@ -13,11 +13,13 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
-#include "JITCompiler.h"
+#include "JITCompiler.hpp"
 #include <map>
 
 struct CodeGeneration
@@ -27,11 +29,14 @@ struct CodeGeneration
 	static std::unique_ptr<llvm::Module> TheModule;
 	static std::map<std::string, llvm::Value *> NamedValues;
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
-	static std::unique_ptr<llvm::JITCompiler> TheJIT;
+	static std::unique_ptr<llvm::orc::JITCompiler> TheJIT;
+	static llvm::ExitOnError ExitOnErr;
 
 	static bool isPureNumber;
 	static int lastPureInt;
 	static llvm::Value* lastLLVMInOp;
+
+	static llvm::Function* GetFunction(std::string name);
 
 	static llvm::Value* LogErrorV(std::string str);
 	static llvm::Function* LogErrorFLLVM(std::string str);
