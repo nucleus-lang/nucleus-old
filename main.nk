@@ -1,9 +1,9 @@
-use "STD";
-
-var example: int = 10;
+func MultiplyByThree(int x) -> int
+{
+	x * 3;
+}
 
 func main() -> int
 {
-	STD.Print("Hello World!");
-	return 0;
+	0;
 }
