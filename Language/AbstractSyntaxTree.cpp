@@ -54,7 +54,11 @@ llvm::Value* AST::Variable::codegen()
 	//std::cout << "CodeGen Variable...\n";
 
 	llvm::Value* V = CodeGeneration::NamedValues[name];
-	CodeGeneration::isPureNumber = false;
+
+	if(static_cast<llvm::ConstantInt*>(V) != nullptr)
+		CodeGeneration::isPureNumber = true;
+	else
+		CodeGeneration::isPureNumber = false;
 
 	if(!V)
 		CodeGeneration::LogErrorV("Unknown variable name.\n");
@@ -198,9 +202,15 @@ llvm::Function* AST::Function::codegen()
 {
 	//std::cout << "CodeGen Function...\n";
 
+	std::cout << "Getting Function...\n";
 	auto &P = *prototype;
 	FunctionProtos[prototype->Name()] = std::move(prototype);
 	llvm::Function* TheFunction = CodeGeneration::GetFunction(P.Name());
+	std::cout << "Function Found!\n";
+
+	std::cout << "Assigning Name to Function...\n";
+	name = P.Name();
+	std::cout << "Name Assigned!\n";
 
 	if(!TheFunction)
 		return nullptr;

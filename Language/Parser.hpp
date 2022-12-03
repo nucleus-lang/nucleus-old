@@ -341,14 +341,17 @@ struct ParseTesting
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
 
-				CodeGeneration::ExitOnErr(
+				if(FnAST->name == "__main")
+				{
+					CodeGeneration::ExitOnErr(
 					CodeGeneration::TheJIT->addModule(
 						llvm::orc::ThreadSafeModule(std::move(CodeGeneration::TheModule), std::move(CodeGeneration::TheContext))));
+					
+					auto ExprSymbol = CodeGeneration::ExitOnErr(CodeGeneration::TheJIT->lookup("__main"));
 
-				auto ExprSymbol = CodeGeneration::ExitOnErr(CodeGeneration::TheJIT->lookup("__main"));
-
-				double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
-      			fprintf(stderr, "Evaluated to %f\n", FP());
+					int (*FP)() = (int(*)())ExprSymbol.getAddress();
+      				std::cout << "Result: " << FP() << "\n";
+      			}
 			}
 
 			std::cout << "Finished Definition...\n";

@@ -32,22 +32,34 @@ llvm::Function* CodeGeneration::LogErrorFLLVM(std::string str)
 
 llvm::Function* CodeGeneration::GetFunction(std::string name)
 {
+	//std::cout << "Looking for Function '" << name << "'...\n";
+
 	if(auto* F = TheModule->getFunction(name))
+	{
+		//std::cout << "'" << name << "' Function Found!\n";
 		return F;
+	}
+
+	//std::cout << "Existing function called '" << name << "' not found, finding Prototype...\n";
 
 	auto FI = AST::FunctionProtos.find(name);
 	if(FI != AST::FunctionProtos.end())
 		return FI->second->codegen();
 
+	//std::cout << "Function " << name << " not found!\n";
+
 	return nullptr;
+}
+
+void CodeGeneration::StartJIT()
+{
+	TheJIT = ExitOnErr(llvm::orc::JITCompiler::Create());
 }
 
 void CodeGeneration::Initialize()
 {
  	// Open a new context and module.
  	TheContext = std::make_unique<llvm::LLVMContext>();
-
- 	TheJIT = ExitOnErr(llvm::orc::JITCompiler::Create());
 
  	TheModule = std::make_unique<llvm::Module>("Nucleus", *TheContext);
  	TheModule->setDataLayout(TheJIT->getDataLayout());

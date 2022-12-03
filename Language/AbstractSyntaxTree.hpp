@@ -113,6 +113,7 @@ struct AST
 
 	struct Function
 	{
+		std::string name;
 		std::unique_ptr<FunctionPrototype> prototype;
 		std::unique_ptr<Expression> body;
 

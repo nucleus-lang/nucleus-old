@@ -53,6 +53,8 @@ int main()
 	fprintf(stderr, "nucleus> ");
 	Lexer::GetNextToken();
 
+	CodeGeneration::StartJIT();
+
 	CodeGeneration::Initialize();
 
 	MainLoop();

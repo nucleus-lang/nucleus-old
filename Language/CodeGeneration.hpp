@@ -41,6 +41,7 @@ struct CodeGeneration
 	static llvm::Value* LogErrorV(std::string str);
 	static llvm::Function* LogErrorFLLVM(std::string str);
 
+	static void StartJIT();
 	static void Initialize();
 };
 
