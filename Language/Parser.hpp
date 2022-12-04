@@ -116,6 +116,8 @@ struct Parser
 				return ParseDotComma();
 			case '(':
 				return ParseParenthesis();
+			case Token::TK_If:
+				return ParseIfExpression();
 		}
 	}
 
@@ -292,7 +294,7 @@ struct Parser
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '}')
-			LogErrorF("Expected '}'");
+			LogErrorF("Expected '}'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		if(Expression)
 			return std::make_unique<AST::Function>(std::move(Proto), std::move(Expression));
@@ -325,6 +327,58 @@ struct Parser
 
 		return nullptr;
 	}
+
+	static std::unique_ptr<AST::Expression> ParseIfExpression()
+	{
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '(')
+			return LogError("Expected '('.");
+
+		auto Condition = ParseParenthesis();
+
+		if(!Condition)
+			return nullptr;
+
+		if(Lexer::CurrentToken != '{')
+			return LogError("Expected '{' at end of condition.");
+
+		Lexer::GetNextToken();
+
+		auto Then = ParseExpression();
+
+		if(!Then)
+			return nullptr;
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '}')
+			return LogError("Expected '}' at end of if block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != Token::TK_Else)
+			return LogError("Expected 'else'.");
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '{')
+			return LogError("Expected '{' at end of condition.");
+
+		Lexer::GetNextToken();
+
+		auto Else = ParseExpression();
+
+		if(!Else)
+			return nullptr;
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '}')
+			return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		return std::make_unique<AST::If>(std::move(Condition), std::move(Then), std::move(Else));
+	}
 };
 
 struct ParseTesting
@@ -349,8 +403,21 @@ struct ParseTesting
 					
 					auto ExprSymbol = CodeGeneration::ExitOnErr(CodeGeneration::TheJIT->lookup("__main"));
 
-					int (*FP)() = (int(*)())ExprSymbol.getAddress();
-      				std::cout << "Result: " << FP() << "\n";
+					if(dynamic_cast<AST::Integer*>(FnAST->type.get()) != nullptr)
+					{
+						int (*FP)() = (int(*)())ExprSymbol.getAddress();
+      					std::cout << "Result: " << FP() << "\n";
+      				}
+      				else if(dynamic_cast<AST::Double*>(FnAST->type.get()) != nullptr)
+      				{
+      					double (*FP)() = (double(*)())ExprSymbol.getAddress();
+      					std::cout << "Result: " << FP() << "\n";
+      				}
+      				else if(dynamic_cast<AST::Float*>(FnAST->type.get()) != nullptr)
+      				{
+      					float (*FP)() = (float(*)())ExprSymbol.getAddress();
+      					std::cout << "Result: " << FP() << "\n";
+      				}
       			}
 			}
 

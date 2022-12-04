@@ -123,6 +123,24 @@ llvm::Value* AST::Binary::codegen()
 			opLLVM = CodeGeneration::Builder->CreateFMul(L, R, "multmp");
 		}
 	}
+	else if(op == '<')
+	{
+		bool isFloat = L->getType()->isFloatTy();
+		bool isDouble = L->getType()->isDoubleTy();
+		bool isInt = L->getType()->isIntegerTy();
+
+		if(pureIntCount == 2)
+			L = CodeGeneration::Builder->CreateICmpULT(L, R, "cmptmp");
+		else
+			L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
+
+		if(isDouble)
+			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
+		else if(isFloat)
+			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
+		else if(isInt)
+			opLLVM = CodeGeneration::Builder->CreateIntCast(L, llvm::Type::getInt32Ty(*CodeGeneration::TheContext), true, "booltmp");
+	}
 		//case '<':
 		//	L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
 		//	return CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
@@ -202,15 +220,16 @@ llvm::Function* AST::Function::codegen()
 {
 	//std::cout << "CodeGen Function...\n";
 
-	std::cout << "Getting Function...\n";
+	//std::cout << "Getting Function...\n";
 	auto &P = *prototype;
 	FunctionProtos[prototype->Name()] = std::move(prototype);
 	llvm::Function* TheFunction = CodeGeneration::GetFunction(P.Name());
 	std::cout << "Function Found!\n";
 
-	std::cout << "Assigning Name to Function...\n";
+	//std::cout << "Assigning Name to Function...\n";
 	name = P.Name();
-	std::cout << "Name Assigned!\n";
+	type = std::move(P.type);
+	//std::cout << "Name Assigned!\n";
 
 	if(!TheFunction)
 		return nullptr;
@@ -243,4 +262,66 @@ llvm::Function* AST::Function::codegen()
 
 	TheFunction->eraseFromParent();
 	return nullptr;
+}
+
+llvm::Value* AST::If::codegen()
+{
+	llvm::Value* ConditionV = Condition->codegen();
+	if(!ConditionV)
+		return nullptr;
+
+	if(CodeGeneration::isPureNumber)
+	{
+		ConditionV = CodeGeneration::Builder->CreateICmpNE(
+			ConditionV, 
+			llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true)), 
+			"ifcond");
+	}
+	else
+	{
+		ConditionV = CodeGeneration::Builder->CreateFCmpONE(
+			ConditionV, 
+			llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)), 
+			"ifcond");
+	}
+
+	llvm::Function *TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+
+	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "then", TheFunction);
+	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "else");
+	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "ifcont");
+
+	CodeGeneration::Builder->CreateCondBr(ConditionV, ThenBB, ElseBB);
+
+	CodeGeneration::Builder->SetInsertPoint(ThenBB);
+
+	llvm::Value* ThenV = Then->codegen();
+
+	if(!ThenV)
+		return nullptr;
+
+	CodeGeneration::Builder->CreateBr(MergeBB);
+
+	ThenBB = CodeGeneration::Builder->GetInsertBlock();
+
+	TheFunction->getBasicBlockList().push_back(ElseBB);
+	CodeGeneration::Builder->SetInsertPoint(ElseBB);
+
+	llvm::Value* ElseV = Else->codegen();
+	if(!ElseV)
+		return nullptr;
+
+	CodeGeneration::Builder->CreateBr(MergeBB);
+
+	ElseBB = CodeGeneration::Builder->GetInsertBlock();
+
+	TheFunction->getBasicBlockList().push_back(MergeBB);
+	CodeGeneration::Builder->SetInsertPoint(MergeBB);
+
+	llvm::PHINode* PN = nullptr;
+	PN = CodeGeneration::Builder->CreatePHI(TheFunction->getFunctionType()->getReturnType(), 2, "iftmp");
+
+	PN->addIncoming(ThenV, ThenBB);
+	PN->addIncoming(ElseV, ElseBB);
+	return PN;
 }

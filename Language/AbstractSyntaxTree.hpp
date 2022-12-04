@@ -113,6 +113,7 @@ struct AST
 
 	struct Function
 	{
+		std::unique_ptr<Expression> type;
 		std::string name;
 		std::unique_ptr<FunctionPrototype> prototype;
 		std::unique_ptr<Expression> body;
@@ -121,6 +122,16 @@ struct AST
 		: prototype(std::move(proto)), body(std::move(b)) {}
 
 		llvm::Function* codegen();
+	};
+
+	struct If : public Expression
+	{
+		std::unique_ptr<Expression> Condition, Then, Else;
+
+		If(std::unique_ptr<Expression> cond, std::unique_ptr<Expression> t, std::unique_ptr<Expression> e) :
+			Condition(std::move(cond)), Then(std::move(t)), Else(std::move(e)) {}
+
+		llvm::Value* codegen() override;
 	};
 };
 

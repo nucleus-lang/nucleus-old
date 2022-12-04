@@ -30,6 +30,9 @@ enum Token
   TK_Float = -10,
 
   TK_Arrow = -11,
+
+  TK_If = -12,
+  TK_Else = -13,
 };
 
 struct Lexer
@@ -68,6 +71,11 @@ struct Lexer
           return Token::TK_Double;
         if(IdentifierStr == "float")
           return Token::TK_Float;
+
+        if(IdentifierStr == "if")
+          return Token::TK_If;
+        if(IdentifierStr == "else")
+          return Token::TK_Else;
 
         return Token::TK_Identifier;
       }
