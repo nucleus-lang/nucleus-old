@@ -216,14 +216,19 @@ struct Parser
 		Lexer::GetNextToken();
 		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType())
 		{
-			auto Expr = ParseFunctionType();
-
-			if(!Expr)
-				return LogErrorP("Expected argument type");
-
 			Lexer::GetNextToken();
 
 			auto VarName = std::make_unique<AST::Variable>(Lexer::IdentifierStr);
+
+			if(Lexer::CurrentToken != ':')
+				return LogErrorP("Expected ':'");
+
+			Lexer::GetNextToken();
+
+			auto Expr = ParseFunctionType();
+			
+			if(!Expr)
+				return LogErrorP("Expected argument type");
 
 			ArgumentNames.push_back(std::make_pair(std::move(Expr), std::move(VarName)));
 			Lexer::GetNextToken();
@@ -379,6 +384,13 @@ struct Parser
 
 		return std::make_unique<AST::If>(std::move(Condition), std::move(Then), std::move(Else));
 	}
+
+	//static std::unique_ptr<Expression> ParseForExpression()
+	//{
+	//	Lexer::GetNextToken();
+
+		
+	//}
 };
 
 struct ParseTesting

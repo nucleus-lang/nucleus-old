@@ -33,6 +33,9 @@ enum Token
 
   TK_If = -12,
   TK_Else = -13,
+
+  TK_For = -14,
+  TK_Var = -15,
 };
 
 struct Lexer
@@ -76,6 +79,12 @@ struct Lexer
           return Token::TK_If;
         if(IdentifierStr == "else")
           return Token::TK_Else;
+
+        if(IdentifierStr == "for")
+          return Token::TK_For;
+
+        if(IdentifierStr == "var")
+          return Token::TK_Var;
 
         return Token::TK_Identifier;
       }

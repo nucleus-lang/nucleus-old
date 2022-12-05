@@ -1,9 +1,18 @@
-func MultiplyByThree(int x) -> int
+func IsNumberLessThan(x: int, y: int) -> int
 {
-	x * 3;
+	if (x < y)
+	{
+		0;
+	}
+	else
+	{
+		1;
+	}
+
+
 }
 
 func main() -> int
 {
-	0;
+	IsNumberLessThan(0, 3);
 }

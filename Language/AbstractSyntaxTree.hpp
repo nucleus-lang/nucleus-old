@@ -133,6 +133,23 @@ struct AST
 
 		llvm::Value* codegen() override;
 	};
+
+	struct For : public Expression
+	{
+		std::unique_ptr<Expression> varType;
+		std::string varName;
+
+		std::unique_ptr<Expression> Start, End, Step, Body;
+
+		For(std::unique_ptr<Expression> Type,
+			const std::string &VarName, std::unique_ptr<Expression> Start,
+    	         std::unique_ptr<Expression> End, std::unique_ptr<Expression> Step,
+    	         std::unique_ptr<Expression> Body) : 
+		varType(std::move(Type)), varName(VarName), Start(std::move(Start)), End(std::move(End)),
+    	  Step(std::move(Step)), Body(std::move(Body)) {}
+
+		llvm::Value *codegen() override;
+	};
 };
 
 #endif
