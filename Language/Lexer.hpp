@@ -36,6 +36,9 @@ enum Token
 
   TK_For = -14,
   TK_Var = -15,
+
+  TK_Binary = -16,
+  TK_Unary = -17,
 };
 
 struct Lexer
@@ -85,6 +88,11 @@ struct Lexer
 
         if(IdentifierStr == "var")
           return Token::TK_Var;
+
+        if(IdentifierStr == "binary")
+          return Token::TK_Binary;
+        if(IdentifierStr == "unary")
+          return Token::TK_Unary;
 
         return Token::TK_Identifier;
       }

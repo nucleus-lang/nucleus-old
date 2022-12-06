@@ -1,4 +1,5 @@
 #include "AbstractSyntaxTree.hpp"
+#include "Parser.hpp"
 
 std::map<std::string, std::unique_ptr<AST::FunctionPrototype>> AST::FunctionProtos;
 
@@ -55,7 +56,9 @@ llvm::Value* AST::Variable::codegen()
 
 	llvm::Value* V = CodeGeneration::NamedValues[name];
 
-	if(static_cast<llvm::ConstantInt*>(V) != nullptr)
+	bool isInt = V->getType()->isIntegerTy();
+
+	if(isInt)
 		CodeGeneration::isPureNumber = true;
 	else
 		CodeGeneration::isPureNumber = false;
@@ -86,7 +89,7 @@ llvm::Value* AST::Binary::codegen()
 
 	if(!L || !R)
 	{
-		std::cout << "Warning: One of the Values is nullptr.\n";
+		//std::cout << "Warning: One of the Values is nullptr.\n";
 		return nullptr;
 	}
 
@@ -130,16 +133,31 @@ llvm::Value* AST::Binary::codegen()
 		bool isInt = L->getType()->isIntegerTy();
 
 		if(pureIntCount == 2)
+		{
+			//std::cout << "Comparing two pure integers.\n";
 			L = CodeGeneration::Builder->CreateICmpULT(L, R, "cmptmp");
+		}
 		else
+		{
+			//std::cout << "Comparing floats or doubles.\n";
 			L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
+		}
 
 		if(isDouble)
+		{
+			//std::cout << "Compare type: Double\n";
 			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
+		}
 		else if(isFloat)
+		{
+			//std::cout << "Compare type: Float\n";
 			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
+		}
 		else if(isInt)
+		{
+			//std::cout << "Compare type: Integer\n";
 			opLLVM = CodeGeneration::Builder->CreateIntCast(L, llvm::Type::getInt32Ty(*CodeGeneration::TheContext), true, "booltmp");
+		}
 	}
 		//case '<':
 		//	L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
@@ -148,7 +166,16 @@ llvm::Value* AST::Binary::codegen()
 		//default:
 
 	if(opLLVM == nullptr)
-		return CodeGeneration::LogErrorV("Invalid binary operator (" + std::to_string(op) + ").\n");
+	{
+		llvm::Function* F = CodeGeneration::GetFunction(std::string("binary") + op);
+
+		if(F == nullptr)
+			return CodeGeneration::LogErrorV("Invalid binary operator (" + std::to_string(op) + ").\n");
+
+		llvm::Value* Ops[2] = { L, R };
+
+		opLLVM = CodeGeneration::Builder->CreateCall(F, Ops, "binop");
+	}
 
 	CodeGeneration::lastLLVMInOp = opLLVM;
 
@@ -161,7 +188,7 @@ llvm::Value* AST::Call::codegen()
 
 	llvm::Function* CalleeF = CodeGeneration::TheModule->getFunction(callee);
 	if(!CalleeF)
-		return CodeGeneration::LogErrorV("Unknown function referenced.\n");
+		return CodeGeneration::LogErrorV("Unknown function " + callee + " referenced.\n");
 
 	if(CalleeF->arg_size() != arguments.size())
 		return CodeGeneration::LogErrorV("Incorrect # arguments passed.\n");
@@ -224,7 +251,7 @@ llvm::Function* AST::Function::codegen()
 	auto &P = *prototype;
 	FunctionProtos[prototype->Name()] = std::move(prototype);
 	llvm::Function* TheFunction = CodeGeneration::GetFunction(P.Name());
-	std::cout << "Function Found!\n";
+	//std::cout << "Function Found!\n";
 
 	//std::cout << "Assigning Name to Function...\n";
 	name = P.Name();
@@ -233,6 +260,9 @@ llvm::Function* AST::Function::codegen()
 
 	if(!TheFunction)
 		return nullptr;
+
+	if(P.IsBinaryOperator())
+		Parser::BinaryOpPrecedence[P.GetOperatorName()] = P.GetBinaryPrecedence();
 
 	if(!TheFunction->empty())
 		return (llvm::Function*)CodeGeneration::LogErrorV("Function cannot be redefined.\n");
@@ -270,20 +300,28 @@ llvm::Value* AST::If::codegen()
 	if(!ConditionV)
 		return nullptr;
 
-	if(CodeGeneration::isPureNumber)
+	bool isInt = ConditionV->getType()->isIntegerTy();
+	bool isDouble = ConditionV->getType()->isDoubleTy();
+	bool isFloat = ConditionV->getType()->isFloatTy();
+
+	if(isInt)
 	{
 		ConditionV = CodeGeneration::Builder->CreateICmpNE(
 			ConditionV, 
 			llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true)), 
 			"ifcond");
 	}
-	else
+	else if(isDouble || isFloat)
 	{
+		//std::cout << "Condition is double or float!\n";
+
 		ConditionV = CodeGeneration::Builder->CreateFCmpONE(
 			ConditionV, 
 			llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)), 
 			"ifcond");
 	}
+	else
+		return CodeGeneration::LogErrorV("Unknown condition type in 'if' statement");
 
 	llvm::Function *TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
 
@@ -324,4 +362,147 @@ llvm::Value* AST::If::codegen()
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
 	return PN;
+}
+
+llvm::Value* AST::For::codegen()
+{
+	llvm::Value* StartVal = Start->codegen();
+	if(!StartVal)
+		return nullptr;
+
+	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+
+	llvm::BasicBlock* PreHeaderBB = CodeGeneration::Builder->GetInsertBlock();
+	llvm::BasicBlock* LoopBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "loop", TheFunction);
+
+	CodeGeneration::Builder->CreateBr(LoopBB);
+
+	CodeGeneration::Builder->SetInsertPoint(LoopBB);
+
+	llvm::PHINode* PHIVariable = nullptr;
+
+	if(dynamic_cast<Double*>(varType.get()) != nullptr)
+	{
+		//std::cout << "Adding ConstantFP (double) PHI Variable...\n";
+		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getDoubleTy(*CodeGeneration::TheContext), 2, varName.c_str());
+		//std::cout << "ConstantFP (double) PHI Variable added!\n";
+	}
+	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+	{
+		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getInt32Ty(*CodeGeneration::TheContext), 2, varName.c_str());
+	}
+	else if(dynamic_cast<Float*>(varType.get()) != nullptr)
+	{
+		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getFloatTy(*CodeGeneration::TheContext), 2, varName.c_str());
+	}
+	else
+		return CodeGeneration::LogErrorV("Unknown function type.");
+
+	PHIVariable->addIncoming(StartVal, PreHeaderBB);
+
+	llvm::Value* oldValue = CodeGeneration::NamedValues[varName];
+	CodeGeneration::NamedValues[varName] = PHIVariable;
+
+	if(!Body->codegen())
+		return nullptr;
+
+	llvm::Value* StepVal = nullptr, *NextVar = nullptr;
+
+	if(Step)
+	{
+		StepVal = Step->codegen();
+
+		if(!StepVal)
+			return nullptr;
+
+		if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
+			NextVar = CodeGeneration::Builder->CreateFAdd(PHIVariable, StepVal, "nextvar");		
+		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+			NextVar = CodeGeneration::Builder->CreateAdd(PHIVariable, StepVal, "nextvar");
+		else
+			return CodeGeneration::LogErrorV("Unknown function type.");
+	}
+	else
+	{
+		if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
+		{
+			//std::cout << "Adding ConstantFP next var condition...\n";
+
+			StepVal = llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(1.0));
+			NextVar = CodeGeneration::Builder->CreateFAdd(PHIVariable, StepVal, "nextvar");
+
+			//std::cout << "ConstantFP next var added!\n";
+		}
+		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+		{
+			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 1, true));
+			NextVar = CodeGeneration::Builder->CreateAdd(PHIVariable, StepVal, "nextvar");
+		}
+		else
+			return CodeGeneration::LogErrorV("Unknown function type.");
+	}
+
+	llvm::Value* EndCond = End->codegen();
+	if(!EndCond)
+		return nullptr;
+
+	if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
+	{
+		//std::cout << "Adding ConstantFP loop condition...\n";
+
+		EndCond = CodeGeneration::Builder->CreateFCmpONE(
+			EndCond, llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)), "loopcond");
+
+		//std::cout << "ConstantFP loop condition added!\n";
+	}
+	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+	{
+		//std::cout << "Adding ConstantInt loop condition...\n";
+
+		EndCond = CodeGeneration::Builder->CreateICmpNE(
+			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true)), "loopcond");
+
+		//std::cout << "ConstantInt loop condition added!\n";
+	}
+	else
+		return CodeGeneration::LogErrorV("Unknown function type.");
+
+	llvm::BasicBlock* LoopEndBB = CodeGeneration::Builder->GetInsertBlock();
+
+	llvm::BasicBlock* AfterBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "afterloop", TheFunction);
+
+	CodeGeneration::Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
+
+	CodeGeneration::Builder->SetInsertPoint(AfterBB);
+
+	PHIVariable->addIncoming(NextVar, LoopEndBB);
+
+	if(oldValue)
+		CodeGeneration::NamedValues[varName] = oldValue;
+	else
+		CodeGeneration::NamedValues.erase(varName);
+
+	if(dynamic_cast<Double*>(varType.get()) != nullptr)
+		return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*CodeGeneration::TheContext));
+	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+		return llvm::Constant::getNullValue(llvm::Type::getInt32Ty(*CodeGeneration::TheContext));
+	else if(dynamic_cast<Float*>(varType.get()) != nullptr)
+		return llvm::Constant::getNullValue(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
+	else
+		return CodeGeneration::LogErrorV("Unknown function type.");
+}
+
+llvm::Value* AST::Unary::codegen()
+{
+	llvm::Value* OperandV = Operand->codegen();
+
+	if(!OperandV)
+		return nullptr;
+
+	llvm::Function* F = CodeGeneration::GetFunction(std::string("unary") + OpCode);
+
+	if(!F)
+		return CodeGeneration::LogErrorV("Unknown unary operator.");
+
+	return CodeGeneration::Builder->CreateCall(F, OperandV, "unop");
 }

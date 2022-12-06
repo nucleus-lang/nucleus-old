@@ -100,11 +100,24 @@ struct AST
 		std::unique_ptr<Expression> type;
 		std::string name;
 		std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> arguments;
+		bool IsOperator;
+		unsigned Precedence;
 
-		FunctionPrototype(std::unique_ptr<Expression> t, const std::string& n, std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> args)
-		: type(std::move(t)), name(n), arguments(std::move(args)) {}
+		FunctionPrototype(std::unique_ptr<Expression> t, const std::string& n, std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> args, bool IsOperator = false, unsigned Prec = 0)
+		: type(std::move(t)), name(n), arguments(std::move(args)), IsOperator(IsOperator), Precedence(Prec) {}
 
 		const std::string& Name() const { return name; }
+
+		bool IsUnaryOperator() const { return IsOperator && arguments.size() == 1; }
+		bool IsBinaryOperator() const  { return IsOperator && arguments.size() == 2; }
+
+		char GetOperatorName() const
+		{
+			assert(IsUnaryOperator() || IsBinaryOperator());
+			return name.back();
+		}
+
+		unsigned GetBinaryPrecedence() const { return Precedence; }
 
 		llvm::Function* codegen();
 	};
@@ -149,6 +162,17 @@ struct AST
     	  Step(std::move(Step)), Body(std::move(Body)) {}
 
 		llvm::Value *codegen() override;
+	};
+
+	struct Unary : public Expression
+	{
+		char OpCode;
+		std::unique_ptr<Expression> Operand;
+
+		Unary(char op, std::unique_ptr<Expression> oper)
+		: OpCode(op), Operand(std::move(oper)) {}
+
+		llvm::Value* codegen() override;
 	};
 };
 

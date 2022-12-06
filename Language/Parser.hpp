@@ -50,8 +50,11 @@ struct Parser
 		if(!V)
 			return nullptr;
 
+		if(Lexer::CurrentToken == '}')
+			Lexer::GetNextToken();
+
 		if(Lexer::CurrentToken != ')')
-			return LogError("Expected ')'");
+			return LogError("Expected ')'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		Lexer::GetNextToken();
 		return V;
@@ -99,7 +102,7 @@ struct Parser
 
 		Lexer::GetNextToken();
 
-		return ParsePrimary();
+		return ParseUnary();
 	}
 
 	static std::unique_ptr<AST::Expression> ParsePrimary()
@@ -118,12 +121,14 @@ struct Parser
 				return ParseParenthesis();
 			case Token::TK_If:
 				return ParseIfExpression();
+			case Token::TK_For:
+				return ParseForExpression();
 		}
 	}
 
 	static std::unique_ptr<AST::Expression> ParseExpression()
 	{
-		auto LHS = ParsePrimary();
+		auto LHS = ParseUnary();
 		if(!LHS)
 			return nullptr;
 
@@ -157,7 +162,7 @@ struct Parser
 			int BinaryOperator = Lexer::CurrentToken;
 			Lexer::GetNextToken();
 
-			auto RHS = ParsePrimary();
+			auto RHS = ParseUnary();
 			if(!RHS)
 				return nullptr;
 
@@ -198,17 +203,73 @@ struct Parser
 	{
 		//Lexer::GetNextToken();
 
+		unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
+		unsigned BinaryPrecedence = 30;
+		std::string FunctionName;
+
 		std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> ArgumentNames;
 
-		if(Lexer::CurrentToken != Token::TK_Identifier)
+		if(Lexer::CurrentToken == Token::TK_Identifier)
+		{
+			FunctionName = Lexer::IdentifierStr;
+			Kind = 0;
+			Lexer::GetNextToken();
+
+			if(FunctionName == "main")
+				FunctionName = "__main";
+		}
+		else if(Lexer::CurrentToken == Token::TK_Unary)
+		{
+			Lexer::GetNextToken();
+
+			if(!isascii(Lexer::CurrentToken))
+				return LogErrorP("Expected binary operator.");
+
+			FunctionName = "unary";
+			FunctionName += (char)Lexer::CurrentToken;
+
+			Kind = 1;
+			Lexer::GetNextToken();
+		}
+		else if(Lexer::CurrentToken == Token::TK_Binary)
+		{
+			Lexer::GetNextToken();
+
+			if(!isascii(Lexer::CurrentToken))
+				return LogErrorP("Expected binary operator.");
+
+			FunctionName = "binary";
+			FunctionName += (char)Lexer::CurrentToken;
+			Kind = 2;
+
+			Lexer::GetNextToken();
+
+			if(Lexer::CurrentToken == Token::TK_Number)
+			{
+				int NumValResult = 0;
+
+				if(Lexer::NumValString.find(".") != std::string::npos)
+				{
+					if(Lexer::NumValString.back() == 'f')
+						NumValResult = int(std::stof(Lexer::NumValString));
+					else
+						NumValResult = int(std::stod(Lexer::NumValString));
+				}
+				else
+					NumValResult = std::stoi(Lexer::NumValString);
+
+				if(NumValResult < 1 || NumValResult > 100)
+					return LogErrorP("Binary Precedence must be between 1 and 100.");
+
+				BinaryPrecedence = (unsigned)NumValResult;
+
+				Lexer::GetNextToken();
+			}
+		}
+		else
+		{
 			return LogErrorP("Expected function name in prototype");
-
-		std::string FunctionName = Lexer::IdentifierStr;
-
-		if(FunctionName == "main")
-			FunctionName = "__main";
-
-		Lexer::GetNextToken();
+		}
 
 		if(Lexer::CurrentToken != '(')
 			return LogErrorP("Expected '(' in function prototype");
@@ -226,7 +287,7 @@ struct Parser
 			Lexer::GetNextToken();
 
 			auto Expr = ParseFunctionType();
-			
+
 			if(!Expr)
 				return LogErrorP("Expected argument type");
 
@@ -266,7 +327,10 @@ struct Parser
 
 		Lexer::GetNextToken();
 
-		return std::make_unique<AST::FunctionPrototype>(std::move(FnType), FunctionName, std::move(ArgumentNames));
+		if(Kind && ArgumentNames.size() != Kind)
+			return LogErrorP("Invalid number of operands for operator.");
+
+		return std::make_unique<AST::FunctionPrototype>(std::move(FnType), FunctionName, std::move(ArgumentNames), Kind != 0, BinaryPrecedence);
 	}
 
 	static std::unique_ptr<AST::Expression> ParseFunctionType()
@@ -340,10 +404,19 @@ struct Parser
 		if(Lexer::CurrentToken != '(')
 			return LogError("Expected '('.");
 
-		auto Condition = ParseParenthesis();
+		Lexer::GetNextToken();
+
+		auto Condition = ParseExpression();
 
 		if(!Condition)
 			return nullptr;
+
+		//Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != ')')
+			return LogError("Expected ')'. Current Token: " + std::to_string(Lexer::CurrentToken));
+
+		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '{')
 			return LogError("Expected '{' at end of condition.");
@@ -385,12 +458,95 @@ struct Parser
 		return std::make_unique<AST::If>(std::move(Condition), std::move(Then), std::move(Else));
 	}
 
-	//static std::unique_ptr<Expression> ParseForExpression()
-	//{
-	//	Lexer::GetNextToken();
+	static std::unique_ptr<AST::Expression> ParseForExpression()
+	{
+		Lexer::GetNextToken();
 
-		
-	//}
+		if(Lexer::CurrentToken != '(')
+			return LogError("Expected '(' at start of for loop.");
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != Token::TK_Identifier)
+			return LogError("Expected identifier after for. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		std::string idName = Lexer::IdentifierStr;
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != ':')
+			return LogError("Expected ':' to set identifier type.");
+
+		Lexer::GetNextToken();
+
+		auto Type = ParseFunctionType();
+		if(!Type)
+			return LogError("Expected type for identifier.");
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '=')
+			return LogError("Expected '=' after identifier.");
+
+		Lexer::GetNextToken();
+
+		auto Start = ParseExpression();
+
+		if(!Start)
+			return nullptr;
+
+		if(Lexer::CurrentToken != TK_DotComma)
+			return LogError("Expected ';' after start of for loop.");
+
+		Lexer::GetNextToken();
+
+		auto End = ParseExpression();
+		if(!End)
+			return nullptr;
+
+		std::unique_ptr<AST::Expression> Step;
+		if(Lexer::CurrentToken == TK_DotComma)
+		{
+			Lexer::GetNextToken();
+			Step = ParseExpression();
+			if(!Step)
+				return nullptr;
+		}
+
+		if(Lexer::CurrentToken != ')')
+			return LogError("Expected ')' to close for loop args.");
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '{')
+			return LogError("Expected '{' in for loop.");
+
+		Lexer::GetNextToken();
+
+		auto Body = ParseExpression();
+		if(!Body)
+			return nullptr;
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '}')
+			return LogError("Expected '}' at end of for loop.");
+
+		return std::make_unique<AST::For>(std::move(Type), idName, std::move(Start), std::move(End), std::move(Step), std::move(Body));
+	}
+
+	static std::unique_ptr<AST::Expression> ParseUnary()
+	{
+		if(!isascii(Lexer::CurrentToken) || Lexer::CurrentToken == '(' || Lexer::CurrentToken == ',')
+			return ParsePrimary();
+
+		int Opc = Lexer::CurrentToken;
+		Lexer::GetNextToken();
+
+		if(auto Operand = ParseUnary())
+			return std::make_unique<AST::Unary>(Opc, std::move(Operand));
+
+		return nullptr;
+	}
 };
 
 struct ParseTesting
