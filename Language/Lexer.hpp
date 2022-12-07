@@ -39,6 +39,8 @@ enum Token
 
   TK_Binary = -16,
   TK_Unary = -17,
+
+  TK_Then = -18,
 };
 
 struct Lexer
@@ -80,6 +82,8 @@ struct Lexer
 
         if(IdentifierStr == "if")
           return Token::TK_If;
+        if(IdentifierStr == "then")
+          return Token::TK_Then;
         if(IdentifierStr == "else")
           return Token::TK_Else;
 

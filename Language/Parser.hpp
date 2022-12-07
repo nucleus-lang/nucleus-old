@@ -363,7 +363,12 @@ struct Parser
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '}')
-			LogErrorF("Expected '}'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+		{
+			if(Lexer::CurrentToken != Token::TK_Identifier)
+				return LogErrorF("Expected '}' at end of function. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			else
+				return LogErrorF("Expected '}' at end of function. Current Identifier: " + Lexer::IdentifierStr + ".");
+		}
 
 		if(Expression)
 			return std::make_unique<AST::Function>(std::move(Proto), std::move(Expression));
@@ -411,15 +416,23 @@ struct Parser
 		if(!Condition)
 			return nullptr;
 
-		//Lexer::GetNextToken();
-
 		if(Lexer::CurrentToken != ')')
 			return LogError("Expected ')'. Current Token: " + std::to_string(Lexer::CurrentToken));
 
 		Lexer::GetNextToken();
 
-		if(Lexer::CurrentToken != '{')
-			return LogError("Expected '{' at end of condition.");
+		bool openedBlock = false;
+
+		if(Lexer::CurrentToken != '{' && Lexer::CurrentToken != Token::TK_Then)
+		{
+			if(Lexer::CurrentToken != Token::TK_Identifier)
+				return LogError("Expected '{' at end of if condition. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			else
+				return LogError("Expected '{' at end of if condition. Current Identifier: " + Lexer::IdentifierStr + ".");
+		}
+
+		if(Lexer::CurrentToken == '{')
+			openedBlock = true;
 
 		Lexer::GetNextToken();
 
@@ -428,32 +441,43 @@ struct Parser
 		if(!Then)
 			return nullptr;
 
-		Lexer::GetNextToken();
+		if(openedBlock)
+		{
+			Lexer::GetNextToken();
 
-		if(Lexer::CurrentToken != '}')
-			return LogError("Expected '}' at end of if block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			if(Lexer::CurrentToken != '}')
+				return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			else
+				openedBlock = false;
+		}
 
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != Token::TK_Else)
-			return LogError("Expected 'else'.");
+			return LogError("Expected 'else'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		Lexer::GetNextToken();
 
-		if(Lexer::CurrentToken != '{')
-			return LogError("Expected '{' at end of condition.");
+		if(Lexer::CurrentToken == '{')
+		{
+			openedBlock = true;
+		}
 
-		Lexer::GetNextToken();
+		if(Lexer::CurrentToken != Token::TK_If)
+			Lexer::GetNextToken();
 
 		auto Else = ParseExpression();
 
 		if(!Else)
 			return nullptr;
 
-		Lexer::GetNextToken();
-
-		if(Lexer::CurrentToken != '}')
-			return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+		if(openedBlock)
+		{
+			Lexer::GetNextToken();
+			
+			if(Lexer::CurrentToken != '}')
+				return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+		}
 
 		return std::make_unique<AST::If>(std::move(Condition), std::move(Then), std::move(Else));
 	}

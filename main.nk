@@ -1,9 +1,9 @@
 extern putchard(x: double) -> double;
 extern printd(x: double) -> double;
 
-func binary $ 1 (x: double, y: double) -> double
+func binary : 1 (x: double, y: double) -> double
 {
-	0.0;
+	y;
 }
 
 func unary!(v: double) -> double
@@ -23,43 +23,36 @@ func unary-(v: double) -> double
 	0.0 - v;
 }
 
-func binary > 10 (LHS: double, RHS: double) -> double
+func binary> 10 (LHS: double, RHS: double) -> double
 {
 	RHS < LHS;	
 }
 
-func binary | 5 (LHS: double, RHS: double) -> double
+func binary| 5 (LHS: double, RHS: double) -> double
 {
 	if(LHS)
 	{
 		1.0;
 	}
-	else 
+	else if(RHS)
 	{
-		if(RHS)
-		{
-			1.0;
-		}
-		else
-		{
-			0.0;
-		}
-	}
-}
-
-func binary & 6 (LHS: double, RHS: double) -> double
-{
-	if(!LHS)
-	{
-		0.0;
+		1.0;
 	}
 	else
 	{
-		!!RHS;
+		0.0;
 	}
 }
 
-func binary = 9 (LHS: double, RHS: double) -> double
+func binary& 6 (LHS: double, RHS: double) -> double
+{
+	if(!LHS) then
+		0.0;
+	else
+		!!RHS;
+}
+
+func binary= 9 (LHS: double, RHS: double) -> double
 {
 	!(LHS < RHS | LHS > RHS);
 }
@@ -67,18 +60,21 @@ func binary = 9 (LHS: double, RHS: double) -> double
 
 func PrintDensity(d: double) -> double
 {
-	if(d > 8.0) { putchard(32.0); }
+	if(d > 8.0)
+	{
+		putchard(32.0);
+	}
+	else if(d > 4.0)
+	{
+		putchard(46.0);
+	}
+	else if(d > 2.0)
+	{
+		putchard(43.0);
+	}
 	else
 	{
-		if(d > 4.0) { putchard(46.0); }
-		else
-		{
-			if(d > 2.0) { putchard(43.0); }
-			else
-			{
-				putchard(42.0);
-			}
-		}
+		putchard(42.0);
 	}
 }
 
@@ -88,7 +84,7 @@ func MandelConverger(real: double, imag: double, iters: double, creal: double, c
 	{
 		iters;
 	}
-	else
+	else 
 	{
 		MandelConverger(real * real - imag * imag + creal, 
 			2.0 * real * imag, 
@@ -110,7 +106,9 @@ func MandelHelp(xmin: double, xmax: double, xstep: double, ymin: double, ymax: d
 			{
 				PrintDensity(MandelConverge(x, y));
 			}
-		) $ putchard(10.0);
+		) :
+
+		putchard(10.0);
 	}
 }
 
@@ -122,5 +120,5 @@ func Mandelbrot(realstart: double, imagstart: double, realmag: double, imagmag: 
 
 func main() -> double
 {
-	Mandelbrot(-2, -1, 0.02, 0.04);
+	Mandelbrot(-2.0, -1.0, 0.02, 0.04);
 }

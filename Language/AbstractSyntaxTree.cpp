@@ -502,7 +502,7 @@ llvm::Value* AST::Unary::codegen()
 	llvm::Function* F = CodeGeneration::GetFunction(std::string("unary") + OpCode);
 
 	if(!F)
-		return CodeGeneration::LogErrorV("Unknown unary operator.");
+		return CodeGeneration::LogErrorV(std::string("Unknown unary operator: ") + OpCode);
 
 	return CodeGeneration::Builder->CreateCall(F, OperandV, "unop");
 }
