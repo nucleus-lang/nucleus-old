@@ -58,9 +58,10 @@ extern "C" DLLEXPORT double printd(double X) {
 int main()
 {
 	llvm::InitializeNativeTarget();
-  	llvm::InitializeNativeTargetAsmPrinter();
-  	llvm::InitializeNativeTargetAsmParser();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
 
+  Parser::BinaryOpPrecedence['='] = 2;
 	Parser::BinaryOpPrecedence['<'] = 10;
 	Parser::BinaryOpPrecedence['+'] = 20;
 	Parser::BinaryOpPrecedence['-'] = 20;

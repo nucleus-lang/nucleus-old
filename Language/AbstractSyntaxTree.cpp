@@ -54,9 +54,9 @@ llvm::Value* AST::Variable::codegen()
 {
 	//std::cout << "CodeGen Variable...\n";
 
-	llvm::Value* V = CodeGeneration::NamedValues[name];
+	llvm::AllocaInst* V = CodeGeneration::NamedValues[name];
 
-	bool isInt = V->getType()->isIntegerTy();
+	bool isInt = V->getAllocatedType()->isIntegerTy();
 
 	if(isInt)
 		CodeGeneration::isPureNumber = true;
@@ -66,12 +66,32 @@ llvm::Value* AST::Variable::codegen()
 	if(!V)
 		CodeGeneration::LogErrorV("Unknown variable name.\n");
 
-	return V;
+	return CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str());
 }
 
 llvm::Value* AST::Binary::codegen()
 {
 	//std::cout << "CodeGen Binary...\n";
+
+	if(op == '=')
+	{
+		AST::Variable* LHSE = dynamic_cast<AST::Variable*>(lhs.get());
+
+		if(!LHSE)
+			return CodeGeneration::LogErrorV("Destionation of '=' must be a variable.");
+
+		llvm::Value* RVal = rhs->codegen();
+		if(!RVal)
+			return nullptr;
+
+		llvm::Value* Variable = CodeGeneration::NamedValues[LHSE->name];
+
+		if(!Variable)
+			return CodeGeneration::LogErrorV("Unknown variable name.");
+
+		CodeGeneration::Builder->CreateStore(RVal, Variable);
+		return RVal;
+	}
 
 	int pureIntCount = 0;
 
@@ -275,8 +295,12 @@ llvm::Function* AST::Function::codegen()
 
 	for(auto& A : TheFunction->args())
 	{
+		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, std::string(A.getName()));
+
+		CodeGeneration::Builder->CreateStore(&A, Alloca);
+
 		auto getNameOfA = std::string(A.getName());
-		CodeGeneration::NamedValues[getNameOfA] = &A;
+		CodeGeneration::NamedValues[getNameOfA] = Alloca;
 	}
 
 	if(llvm::Value* RetVal = body->codegen())
@@ -366,47 +390,30 @@ llvm::Value* AST::If::codegen()
 
 llvm::Value* AST::For::codegen()
 {
+	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+
+	llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, varName);
+
 	llvm::Value* StartVal = Start->codegen();
 	if(!StartVal)
 		return nullptr;
 
-	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+	CodeGeneration::Builder->CreateStore(StartVal, Alloca);
 
-	llvm::BasicBlock* PreHeaderBB = CodeGeneration::Builder->GetInsertBlock();
 	llvm::BasicBlock* LoopBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "loop", TheFunction);
 
 	CodeGeneration::Builder->CreateBr(LoopBB);
 
 	CodeGeneration::Builder->SetInsertPoint(LoopBB);
 
-	llvm::PHINode* PHIVariable = nullptr;
-
-	if(dynamic_cast<Double*>(varType.get()) != nullptr)
-	{
-		//std::cout << "Adding ConstantFP (double) PHI Variable...\n";
-		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getDoubleTy(*CodeGeneration::TheContext), 2, varName.c_str());
-		//std::cout << "ConstantFP (double) PHI Variable added!\n";
-	}
-	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
-	{
-		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getInt32Ty(*CodeGeneration::TheContext), 2, varName.c_str());
-	}
-	else if(dynamic_cast<Float*>(varType.get()) != nullptr)
-	{
-		PHIVariable = CodeGeneration::Builder->CreatePHI(llvm::Type::getFloatTy(*CodeGeneration::TheContext), 2, varName.c_str());
-	}
-	else
-		return CodeGeneration::LogErrorV("Unknown function type.");
-
-	PHIVariable->addIncoming(StartVal, PreHeaderBB);
-
-	llvm::Value* oldValue = CodeGeneration::NamedValues[varName];
-	CodeGeneration::NamedValues[varName] = PHIVariable;
+	llvm::AllocaInst* oldValue = CodeGeneration::NamedValues[varName];
+	CodeGeneration::NamedValues[varName] = Alloca;
 
 	if(!Body->codegen())
 		return nullptr;
 
-	llvm::Value* StepVal = nullptr, *NextVar = nullptr;
+	llvm::Value* StepVal = nullptr, *NextVar = nullptr, 
+	*CurVar = CodeGeneration::Builder->CreateLoad(Alloca->getAllocatedType(), Alloca, varName.c_str());
 
 	if(Step)
 	{
@@ -416,9 +423,9 @@ llvm::Value* AST::For::codegen()
 			return nullptr;
 
 		if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
-			NextVar = CodeGeneration::Builder->CreateFAdd(PHIVariable, StepVal, "nextvar");		
+			NextVar = CodeGeneration::Builder->CreateFAdd(CurVar, StepVal, "nextvar");		
 		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
-			NextVar = CodeGeneration::Builder->CreateAdd(PHIVariable, StepVal, "nextvar");
+			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
 		else
 			return CodeGeneration::LogErrorV("Unknown function type.");
 	}
@@ -429,14 +436,14 @@ llvm::Value* AST::For::codegen()
 			//std::cout << "Adding ConstantFP next var condition...\n";
 
 			StepVal = llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(1.0));
-			NextVar = CodeGeneration::Builder->CreateFAdd(PHIVariable, StepVal, "nextvar");
+			NextVar = CodeGeneration::Builder->CreateFAdd(CurVar, StepVal, "nextvar");
 
 			//std::cout << "ConstantFP next var added!\n";
 		}
 		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
 		{
 			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 1, true));
-			NextVar = CodeGeneration::Builder->CreateAdd(PHIVariable, StepVal, "nextvar");
+			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
 		}
 		else
 			return CodeGeneration::LogErrorV("Unknown function type.");
@@ -445,6 +452,8 @@ llvm::Value* AST::For::codegen()
 	llvm::Value* EndCond = End->codegen();
 	if(!EndCond)
 		return nullptr;
+
+	CodeGeneration::Builder->CreateStore(NextVar, Alloca);
 
 	if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
 	{
@@ -467,15 +476,11 @@ llvm::Value* AST::For::codegen()
 	else
 		return CodeGeneration::LogErrorV("Unknown function type.");
 
-	llvm::BasicBlock* LoopEndBB = CodeGeneration::Builder->GetInsertBlock();
-
 	llvm::BasicBlock* AfterBB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "afterloop", TheFunction);
 
 	CodeGeneration::Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
 
 	CodeGeneration::Builder->SetInsertPoint(AfterBB);
-
-	PHIVariable->addIncoming(NextVar, LoopEndBB);
 
 	if(oldValue)
 		CodeGeneration::NamedValues[varName] = oldValue;

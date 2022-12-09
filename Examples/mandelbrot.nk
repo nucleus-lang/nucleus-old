@@ -1,0 +1,118 @@
+extern putchard(x: double) -> double;
+extern printd(x: double) -> double;
+
+func binary : 1 (x: double, y: double) -> double
+{
+	y;
+}
+
+func unary!(v: double) -> double
+{
+	if(v) { 0.0; }
+	else { 1.0; }
+}
+
+func unary-(v: double) -> double
+{
+	0.0 - v;
+}
+
+func binary> 10 (LHS: double, RHS: double) -> double
+{
+	RHS < LHS;	
+}
+
+func binary| 5 (LHS: double, RHS: double) -> double
+{
+	if(LHS)
+	{
+		1.0;
+	}
+	else if(RHS)
+	{
+		1.0;
+	}
+	else
+	{
+		0.0;
+	}
+}
+
+func binary& 6 (LHS: double, RHS: double) -> double
+{
+	if(!LHS)
+		{ 0.0; }
+	else
+		{ !!RHS; }
+}
+
+func binary= 9 (LHS: double, RHS: double) -> double
+{
+	!(LHS < RHS | LHS > RHS);
+}
+
+
+func PrintDensity(d: double) -> double
+{
+	if(d > 8.0)
+	{
+		putchard(32.0);
+	}
+	else if(d > 4.0)
+	{
+		putchard(46.0);
+	}
+	else if(d > 2.0)
+	{
+		putchard(43.0);
+	}
+	else
+	{
+		putchard(42.0);
+	}
+}
+
+func MandelConverger(real: double, imag: double, iters: double, creal: double, cimag: double) -> double
+{
+	if(iters > 255.0 | (real * real + imag * imag > 4))
+	{
+		iters;
+	}
+	else 
+	{
+		MandelConverger(real * real - imag * imag + creal, 
+			2.0 * real * imag, 
+			iters + 1.0, creal, cimag);
+	}
+}
+
+func MandelConverge(real: double, imag: double) -> double
+{
+	MandelConverger(real, imag, 0.0, real, imag);
+}
+
+func MandelHelp(xmin: double, xmax: double, xstep: double, ymin: double, ymax: double, ystep: double) -> double
+{
+	for(y: double = ymin; y < ymax; ystep)
+	{
+		(
+			for(x: double = xmin; x < xmax; xstep)
+			{
+				PrintDensity(MandelConverge(x, y));
+			}
+		) :
+
+		putchard(10.0);
+	}
+}
+
+func Mandelbrot(realstart: double, imagstart: double, realmag: double, imagmag: double) -> double
+{
+	MandelHelp(realstart, realstart + realmag * 78.0, realmag, 
+				imagstart, imagstart + imagmag * 40.0, imagmag);
+}
+
+func main() -> double
+{
+	Mandelbrot(-2.0, -1.0, 0.02, 0.04);
+}

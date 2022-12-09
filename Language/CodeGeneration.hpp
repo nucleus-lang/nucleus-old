@@ -19,6 +19,7 @@
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Transforms/Utils.h"
 #include "JITCompiler.hpp"
 #include <map>
 
@@ -27,7 +28,7 @@ struct CodeGeneration
 	static std::unique_ptr<llvm::LLVMContext> TheContext;
 	static std::unique_ptr<llvm::IRBuilder<>> Builder;
 	static std::unique_ptr<llvm::Module> TheModule;
-	static std::map<std::string, llvm::Value *> NamedValues;
+	static std::map<std::string, llvm::AllocaInst*> NamedValues;
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 	static std::unique_ptr<llvm::orc::JITCompiler> TheJIT;
 	static llvm::ExitOnError ExitOnErr;
@@ -40,6 +41,8 @@ struct CodeGeneration
 
 	static llvm::Value* LogErrorV(std::string str);
 	static llvm::Function* LogErrorFLLVM(std::string str);
+
+	static llvm::AllocaInst* CreateEntryAllocation(llvm::Function* TheFunction, const std::string& VarName);
 
 	static void StartJIT();
 	static void Initialize();

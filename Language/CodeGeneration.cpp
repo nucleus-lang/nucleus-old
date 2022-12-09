@@ -10,7 +10,7 @@
 std::unique_ptr<llvm::LLVMContext> CodeGeneration::TheContext;
 std::unique_ptr<llvm::IRBuilder<>> CodeGeneration::Builder;
 std::unique_ptr<llvm::Module> CodeGeneration::TheModule;
-std::map<std::string, llvm::Value *> CodeGeneration::NamedValues;
+std::map<std::string, llvm::AllocaInst*> CodeGeneration::NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> CodeGeneration::TheFPM;
 bool CodeGeneration::isPureNumber = false;
 int CodeGeneration::lastPureInt = 0;
@@ -51,6 +51,14 @@ llvm::Function* CodeGeneration::GetFunction(std::string name)
 	return nullptr;
 }
 
+llvm::AllocaInst* CodeGeneration::CreateEntryAllocation(llvm::Function* TheFunction, const std::string& VarName)
+{
+	  llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                 TheFunction->getEntryBlock().begin());
+  return TmpB.CreateAlloca(TheFunction->getFunctionType()->getReturnType(), 0,
+                           VarName.c_str());
+}
+
 void CodeGeneration::StartJIT()
 {
 	TheJIT = ExitOnErr(llvm::orc::JITCompiler::Create());
@@ -73,6 +81,9 @@ void CodeGeneration::Initialize()
  	// ENABLE BASIC OPTIMIZATIONS
  	// ==========================
 
+ 	// Promote allocations to registers.
+ 	TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
+
  	// Do simple optimizations and bit-twiddling.
  	TheFPM->add(llvm::createInstructionCombiningPass());
 
@@ -84,6 +95,7 @@ void CodeGeneration::Initialize()
 
  	// Simplify the control flow graph (deleting unreacable blocks, etc.)
  	TheFPM->add(llvm::createCFGSimplificationPass());
+
 
  	TheFPM->doInitialization();
 }

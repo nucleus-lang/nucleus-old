@@ -174,6 +174,24 @@ struct AST
 
 		llvm::Value* codegen() override;
 	};
+
+	struct VarStruct
+	{
+		std::string name;
+		std::unique_ptr<Expression> type;
+		std::unique_ptr<Expression> body;
+	};
+
+	struct Var : public Expression
+	{
+		std::vector<VarStruct> VarNames;
+		std::unique_ptr<Expression> Body;
+
+		Var(std::vector<VarStruct> vn, std::unique_ptr<Expression> b) :
+			VarNames(std::move(vn)), Body(std::move(b)) {}
+
+		llvm::Value* codegen() override;
+	};
 };
 
 #endif
