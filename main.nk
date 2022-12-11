@@ -6,7 +6,6 @@ func binary : 1 (x: int, y: int) -> int
 	y;
 }
 
-
 func test(x: int) -> int
 {
 	var a: int = 42;
