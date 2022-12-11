@@ -18,6 +18,13 @@ llvm::Value* CodeGeneration::lastLLVMInOp = nullptr;
 std::unique_ptr<llvm::orc::JITCompiler> CodeGeneration::TheJIT;
 llvm::ExitOnError CodeGeneration::ExitOnErr;
 
+std::unique_ptr<llvm::DIBuilder> CodeGeneration::DBuilder;
+
+llvm::DICompileUnit* CodeGeneration::DebugInfo::TheCU;
+llvm::DIType* CodeGeneration::DebugInfo::DblTy, *CodeGeneration::DebugInfo::IntTy, *CodeGeneration::DebugInfo::FloTy;
+
+std::vector<llvm::DIScope*> CodeGeneration::DebugInfo::LexicalBlocks;
+
 llvm::Value* CodeGeneration::LogErrorV(std::string str)
 {
 	Parser::LogError(str);
@@ -44,7 +51,10 @@ llvm::Function* CodeGeneration::GetFunction(std::string name)
 
 	auto FI = AST::FunctionProtos.find(name);
 	if(FI != AST::FunctionProtos.end())
+	{
+		//std::cout << "Generating CodeGen...\n";
 		return FI->second->codegen();
+	}
 
 	//std::cout << "Function " << name << " not found!\n";
 
@@ -96,6 +106,113 @@ void CodeGeneration::Initialize()
  	// Simplify the control flow graph (deleting unreacable blocks, etc.)
  	TheFPM->add(llvm::createCFGSimplificationPass());
 
-
  	TheFPM->doInitialization();
+
+ 	TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+
+ 	if(llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+ 		TheModule->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+
+ 	DBuilder = std::make_unique<llvm::DIBuilder>(*TheModule);
+
+ 	CodeGeneration::DebugInfo::TheCU = DBuilder->createCompileUnit(
+
+ 		llvm::dwarf::DW_LANG_C, DBuilder->createFile("main.nk", "."),
+ 		"Nucleus Compiler", false, "", 0
+
+ 		);
+}
+
+void CodeGeneration::CompileToObjectCode()
+{
+	////std::cout << "Compiling...\n";
+
+#if 0
+	llvm::InitializeAllTargetInfos();
+  	llvm::InitializeAllTargets();
+  	llvm::InitializeAllTargetMCs();
+  	llvm::InitializeAllAsmParsers();
+  	llvm::InitializeAllAsmPrinters();
+
+  	auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+
+  	TheModule->setTargetTriple(TargetTriple);
+
+  	std::string Error;
+  	auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+
+  	if(!Target)
+  	{
+  		llvm::errs() << Error;
+  		exit(1);
+  	}
+
+  	auto CPU = "generic";
+  	auto Features = "";
+
+  	llvm::TargetOptions opt;
+
+  	auto RM = llvm::Optional<llvm::Reloc::Model>();
+  	auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+
+  	TheModule->setDataLayout(TargetMachine->createDataLayout());
+  	TheModule->setTargetTriple(TargetTriple);
+
+  	auto FileName = "output.o";
+
+  	std::error_code EC;
+  	llvm::raw_fd_ostream dest(FileName, EC, llvm::sys::fs::OF_None);
+
+  	if(EC)
+  	{
+  		llvm::errs() << "Could not open file: " << EC.message();
+  		exit(1);
+  	}
+
+  	llvm::legacy::PassManager pass;
+  	auto FileType = llvm::CGFT_ObjectFile;
+
+  	if(TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
+  	{
+  		llvm::errs() << "TargetMachine can't emit a file of this type.";
+  		exit(1);
+  	}
+
+  	pass.run(*TheModule);
+  	dest.flush();
+
+  	//std::cout << FileName << " succesfully compiled!\n";
+
+ #endif
+
+	DBuilder->finalize();
+
+	TheModule->print(llvm::errs(), nullptr);
+}
+
+llvm::DIType* CodeGeneration::DebugInfo::getDoubleTy()
+{
+	if(DblTy)
+		return DblTy;
+
+	DblTy = DBuilder->createBasicType("double", 64, llvm::dwarf::DW_ATE_float);
+	return DblTy;
+}
+
+llvm::DIType* CodeGeneration::DebugInfo::getIntegerTy()
+{
+	if(IntTy)
+		return IntTy;
+
+	IntTy = DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_float);
+	return IntTy;
+}
+
+llvm::DIType* CodeGeneration::DebugInfo::getFloatTy()
+{
+	if(FloTy)
+		return FloTy;
+
+	FloTy = DBuilder->createBasicType("float", 64, llvm::dwarf::DW_ATE_float);
+	return FloTy;
 }

@@ -64,10 +64,12 @@ struct Parser
 	{
 		std::string idName = Lexer::IdentifierStr;
 
+		SourceLocation LitLoc = Lexer::CurrentLocation;
+
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '(')
-			return std::make_unique<AST::Variable>(idName);
+			return std::make_unique<AST::Variable>(LitLoc, idName);
 
 		Lexer::GetNextToken();
 		std::vector<std::unique_ptr<AST::Expression>> Arguments;
@@ -93,7 +95,7 @@ struct Parser
 
 		Lexer::GetNextToken();
 
-		return std::make_unique<AST::Call>(idName, std::move(Arguments));
+		return std::make_unique<AST::Call>(LitLoc, idName, std::move(Arguments));
 	}
 
 	static std::unique_ptr<AST::Expression> ParseDotComma()
@@ -123,6 +125,8 @@ struct Parser
 				return ParseIfExpression();
 			case Token::TK_For:
 				return ParseForExpression();
+			case Token::TK_Var:
+				return ParseVar();
 		}
 	}
 
@@ -160,6 +164,7 @@ struct Parser
 				return LHS;
 
 			int BinaryOperator = Lexer::CurrentToken;
+			SourceLocation BinLoc = Lexer::CurrentLocation;
 			Lexer::GetNextToken();
 
 			auto RHS = ParseUnary();
@@ -175,7 +180,7 @@ struct Parser
 					return nullptr;
 			}
 
-			LHS = std::make_unique<AST::Binary>(BinaryOperator, std::move(LHS), std::move(RHS));
+			LHS = std::make_unique<AST::Binary>(BinLoc, BinaryOperator, std::move(LHS), std::move(RHS));
 		}
 	}
 
@@ -207,6 +212,8 @@ struct Parser
 		unsigned BinaryPrecedence = 30;
 		std::string FunctionName;
 
+		SourceLocation FnLoc = Lexer::CurrentLocation;
+
 		std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> ArgumentNames;
 
 		if(Lexer::CurrentToken == Token::TK_Identifier)
@@ -215,8 +222,8 @@ struct Parser
 			Kind = 0;
 			Lexer::GetNextToken();
 
-			if(FunctionName == "main")
-				FunctionName = "__main";
+			//if(FunctionName == "main")
+			//	FunctionName = "__main";
 		}
 		else if(Lexer::CurrentToken == Token::TK_Unary)
 		{
@@ -279,7 +286,9 @@ struct Parser
 		{
 			Lexer::GetNextToken();
 
-			auto VarName = std::make_unique<AST::Variable>(Lexer::IdentifierStr);
+			SourceLocation VarLoc = Lexer::CurrentLocation;
+
+			auto VarName = std::make_unique<AST::Variable>(VarLoc, Lexer::IdentifierStr);
 
 			if(Lexer::CurrentToken != ':')
 				return LogErrorP("Expected ':'");
@@ -298,7 +307,7 @@ struct Parser
 				return LogErrorP("Expected ',' in function prototype");
 			else
 			{
-				std::cout << "Comma detected!\n";
+				//std::cout << "Comma detected!\n";
 
 				if(Lexer::CurrentToken == ')')
 					break;
@@ -330,7 +339,7 @@ struct Parser
 		if(Kind && ArgumentNames.size() != Kind)
 			return LogErrorP("Invalid number of operands for operator.");
 
-		return std::make_unique<AST::FunctionPrototype>(std::move(FnType), FunctionName, std::move(ArgumentNames), Kind != 0, BinaryPrecedence);
+		return std::make_unique<AST::FunctionPrototype>(FnLoc, std::move(FnType), FunctionName, std::move(ArgumentNames), Kind != 0, BinaryPrecedence);
 	}
 
 	static std::unique_ptr<AST::Expression> ParseFunctionType()
@@ -391,19 +400,21 @@ struct Parser
 
 	static std::unique_ptr<AST::Function> ParseTopLevelExpression()
 	{
-		Lexer::GetNextToken();
+		//Lexer::GetNextToken();
 
-		if(auto Expression = ParseExpression())
-		{
-			auto Proto = std::make_unique<AST::FunctionPrototype>(std::make_unique<AST::Double>(0), "", std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>>());
-			return std::make_unique<AST::Function>(std::move(Proto), std::move(Expression));
-		}
+		//if(auto Expression = ParseExpression())
+		//{
+		//	auto Proto = std::make_unique<AST::FunctionPrototype>(std::make_unique<AST::Double>(0), "", std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>>());
+		//	return std::make_unique<AST::Function>(std::move(Proto), std::move(Expression));
+		//}
 
 		return nullptr;
 	}
 
 	static std::unique_ptr<AST::Expression> ParseIfExpression()
 	{
+		SourceLocation IfLoc = Lexer::CurrentLocation;
+
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '(')
@@ -479,7 +490,7 @@ struct Parser
 				return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 		}
 
-		return std::make_unique<AST::If>(std::move(Condition), std::move(Then), std::move(Else));
+		return std::make_unique<AST::If>(IfLoc, std::move(Condition), std::move(Then), std::move(Else));
 	}
 
 	static std::unique_ptr<AST::Expression> ParseForExpression()
@@ -571,6 +582,66 @@ struct Parser
 
 		return nullptr;
 	}
+
+	static std::unique_ptr<AST::Expression> ParseVar()
+	{
+		Lexer::GetNextToken();
+
+		std::vector<AST::VarStruct> VarNames;
+
+		if(Lexer::CurrentToken != Token::TK_Identifier)
+			return LogError("Expected identifier after var.");
+
+		while (1)
+		{
+			std::string Name = Lexer::IdentifierStr;
+
+			Lexer::GetNextToken();
+
+			std::unique_ptr<AST::Expression> Type;
+			if (Lexer::CurrentToken != ':')
+				return LogError("Expected type after var identifier.");
+
+			Lexer::GetNextToken();
+
+			Type = ParseFunctionType();
+			if(!Type) return nullptr;
+
+			Lexer::GetNextToken();
+
+			std::unique_ptr<AST::Expression> Init;
+			if(Lexer::CurrentToken == '=')
+			{
+				Lexer::GetNextToken();
+
+				Init = ParseExpression();
+				if(!Init) return nullptr;
+			}
+
+			AST::VarStruct v;
+			v.type = std::move(Type);
+			v.name = Name;
+			v.body = std::move(Init);
+
+			VarNames.push_back(std::move(v));
+
+			if(Lexer::CurrentToken != ',') { break; }
+
+			Lexer::GetNextToken();
+
+			if(Lexer::CurrentToken != Token::TK_Identifier)
+				return LogError("Expected identifier list after var");
+		}
+
+		if(Lexer::CurrentToken != Token::TK_DotComma)
+			return LogError("Expected ';' after 'var'.");
+
+		auto Body = ParseExpression();
+		if(!Body)
+			return nullptr;
+
+		return std::make_unique<AST::Var>(std::move(VarNames), std::move(Body));
+	}
 };
 
 struct ParseTesting
@@ -579,41 +650,16 @@ struct ParseTesting
 	{
 		if(auto FnAST = Parser::ParseDefinition())
 		{
-			std::cout << "Handling Definition...\n";
+			//std::cout << "Handling Definition...\n";
 
 			if(auto *FnIR = FnAST->codegen())
 			{
-				fprintf(stderr, "Parsed a function definition:\n\n");
-				FnIR->print(llvm::errs());
-				fprintf(stderr, "\n");
-
-				if(FnAST->name == "__main")
-				{
-					CodeGeneration::ExitOnErr(
-					CodeGeneration::TheJIT->addModule(
-						llvm::orc::ThreadSafeModule(std::move(CodeGeneration::TheModule), std::move(CodeGeneration::TheContext))));
-					
-					auto ExprSymbol = CodeGeneration::ExitOnErr(CodeGeneration::TheJIT->lookup("__main"));
-
-					if(dynamic_cast<AST::Integer*>(FnAST->type.get()) != nullptr)
-					{
-						int (*FP)() = (int(*)())ExprSymbol.getAddress();
-      					std::cout << "Result: " << FP() << "\n";
-      				}
-      				else if(dynamic_cast<AST::Double*>(FnAST->type.get()) != nullptr)
-      				{
-      					double (*FP)() = (double(*)())ExprSymbol.getAddress();
-      					std::cout << "Result: " << FP() << "\n";
-      				}
-      				else if(dynamic_cast<AST::Float*>(FnAST->type.get()) != nullptr)
-      				{
-      					float (*FP)() = (float(*)())ExprSymbol.getAddress();
-      					std::cout << "Result: " << FP() << "\n";
-      				}
-      			}
+				//fprintf(stderr, "Parsed a function definition:\n\n");
+				//FnIR->print(llvm::errs());
+				//fprintf(stderr, "\n");
 			}
 
-			std::cout << "Finished Definition...\n";
+			//std::cout << "Finished Definition...\n";
 		}
 		else
 			Lexer::GetNextToken();
@@ -623,17 +669,17 @@ struct ParseTesting
 	{
 		if(auto ProtoAST = Parser::ParseExtern())
 		{
-			std::cout << "Handling Extern...\n";
+			//std::cout << "Handling Extern...\n";
 
 			if(auto *FnIR = ProtoAST->codegen())
 			{
-				fprintf(stderr, "Parsed an extern:");
-				FnIR->print(llvm::errs());
-				fprintf(stderr, "\n");
+				//fprintf(stderr, "Parsed an extern:");
+				//FnIR->print(llvm::errs());
+				//fprintf(stderr, "\n");
 
 				AST::FunctionProtos[ProtoAST->Name()] = std::move(ProtoAST);
 				
-				std::cout << "Finished Extern...\n";
+				//std::cout << "Finished Extern...\n";
 			}
 		}
 		else
@@ -644,13 +690,13 @@ struct ParseTesting
 	{
 		if(auto FnAST = Parser::ParseTopLevelExpression())
 		{
-			std::cout << "Handling Top Level Expression...\n";
+			//std::cout << "Handling Top Level Expression...\n";
 
 			if(auto *FnIR = FnAST->codegen())
 			{
-				fprintf(stderr, "Parsed a top level expression:");
-				FnIR->print(llvm::errs());
-				fprintf(stderr, "\n");
+				//fprintf(stderr, "Parsed a top level expression:");
+				//FnIR->print(llvm::errs());
+				//fprintf(stderr, "\n");
 
 				FnIR->eraseFromParent();
 				return;

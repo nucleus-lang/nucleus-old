@@ -8,23 +8,27 @@ std::string Lexer::IdentifierStr;
 std::string Lexer::NumValString;
 std::map<char, int> Parser::BinaryOpPrecedence;
 
+SourceLocation Lexer::CurrentLocation;
+SourceLocation Lexer::LexerLocation = {1, 0};
+
 void MainLoop()
 {
-	while(true)
+	bool closeLoop = false;
+	while(!closeLoop)
 	{
-		fprintf(stderr, "nucleus> ");
+		//fprintf(stderr, "nucleus> ");
 		switch(Lexer::CurrentToken)
 		{
 			case Token::TK_EndOfFile:
-				exit(0);
+				closeLoop = true;
 				break;
 			case Token::TK_Define:
-				std::cout << "Looking for Function...\n";
+				//std::cout << "Looking for Function...\n";
 				ParseTesting::Definition();
 				Lexer::GetNextToken();
 				break;
 			case Token::TK_Extern:
-				std::cout << "Looking for Extern...\n";
+				//std::cout << "Looking for Extern...\n";
 				ParseTesting::Extern();
 				Lexer::GetNextToken();
 				break;
@@ -33,7 +37,7 @@ void MainLoop()
 			//	ParseTesting::TopLevelExpression();
 			//	break;
 			default:
-				exit(0);
+				closeLoop = true;
 				break;
 		}
 	}
@@ -67,7 +71,7 @@ int main()
 	Parser::BinaryOpPrecedence['-'] = 20;
 	Parser::BinaryOpPrecedence['*'] = 40;
 
-	fprintf(stderr, "nucleus> ");
+	//fprintf(stderr, "nucleus> ");
 	Lexer::GetNextToken();
 
 	CodeGeneration::StartJIT();
@@ -75,6 +79,8 @@ int main()
 	CodeGeneration::Initialize();
 
 	MainLoop();
+
+	CodeGeneration::CompileToObjectCode();
 
 	return 0;
 }

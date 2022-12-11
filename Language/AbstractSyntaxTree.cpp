@@ -10,11 +10,13 @@ llvm::Value* AST::Number::codegen()
 	if(isDouble)
 	{
 		CodeGeneration::isPureNumber = false;
+		//AST::EmitLocation(this);
 		return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(doubleValue));
 	}
 	else if(isFloat)
 	{
 		CodeGeneration::isPureNumber = false;
+		//AST::EmitLocation(this);
 		return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(floatValue));
 	}
 	else if(isInt)
@@ -23,9 +25,11 @@ llvm::Value* AST::Number::codegen()
 
 		llvm::Type *i32_type = llvm::IntegerType::getInt32Ty(*CodeGeneration::TheContext);
 		CodeGeneration::isPureNumber = true;
+		//AST::EmitLocation(this);
 		return llvm::ConstantInt::get(i32_type, intValue, true);
 	}
 
+	//AST::EmitLocation(this);
 	return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(doubleValue));
 }
 
@@ -33,6 +37,7 @@ llvm::Value* AST::Integer::codegen()
 {
 	//std::cout << "CodeGen Integer...\n";
 	CodeGeneration::isPureNumber = false;
+	//AST::EmitLocation(this);
 	return llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, value, true));
 }
 
@@ -40,6 +45,7 @@ llvm::Value* AST::Float::codegen()
 {
 	//std::cout << "CodeGen Float...\n";
 	CodeGeneration::isPureNumber = false;
+	//AST::EmitLocation(this);
 	return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(value));
 }
 
@@ -47,6 +53,7 @@ llvm::Value* AST::Double::codegen()
 {
 	//std::cout << "CodeGen Double...\n";
 	CodeGeneration::isPureNumber = false;
+	//AST::EmitLocation(this);
 	return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(value));
 }
 
@@ -66,12 +73,15 @@ llvm::Value* AST::Variable::codegen()
 	if(!V)
 		CodeGeneration::LogErrorV("Unknown variable name.\n");
 
+	//AST::EmitLocation(this);
 	return CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str());
 }
 
 llvm::Value* AST::Binary::codegen()
 {
 	//std::cout << "CodeGen Binary...\n";
+
+	//AST::EmitLocation(this);
 
 	if(op == '=')
 	{
@@ -206,6 +216,8 @@ llvm::Value* AST::Call::codegen()
 {
 	//std::cout << "CodeGen Call...\n";
 
+	//AST::EmitLocation(this);
+
 	llvm::Function* CalleeF = CodeGeneration::TheModule->getFunction(callee);
 	if(!CalleeF)
 		return CodeGeneration::LogErrorV("Unknown function " + callee + " referenced.\n");
@@ -238,9 +250,14 @@ llvm::Function* AST::FunctionPrototype::codegen()
 			llvmArgs.push_back(llvm::Type::getInt32Ty(*CodeGeneration::TheContext));
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
+		else
+			return CodeGeneration::LogErrorFLLVM("One of the argument types is unknown.");
 	}
 
 	llvm::FunctionType* FT = nullptr;
+
+	if(type == nullptr)
+		return CodeGeneration::LogErrorFLLVM("type is nullptr.");
 
 	if(dynamic_cast<Double*>(type.get()) != nullptr)
 		FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(*CodeGeneration::TheContext), llvmArgs, false);
@@ -256,9 +273,18 @@ llvm::Function* AST::FunctionPrototype::codegen()
 
 	llvm::Function* F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, name, CodeGeneration::TheModule.get());
 
+	//std::cout << "Setting Arguments...\n";
+
 	unsigned Idx = 0;
 	for (auto &Arg : F->args())
+	{
+		if(arguments[Idx].second == nullptr)
+			return CodeGeneration::LogErrorFLLVM("One of the Arguments is nullptr.");
+
   		Arg.setName(arguments[Idx++].second->name);
+	}
+
+	//std::cout << "Done!\n";
 
 	return F;
 }
@@ -267,22 +293,34 @@ llvm::Function* AST::Function::codegen()
 {
 	//std::cout << "CodeGen Function...\n";
 
+	if(prototype == nullptr)
+		return (llvm::Function*)CodeGeneration::LogErrorV("Function prototype is nullptr.\n");
+
 	//std::cout << "Getting Function...\n";
 	auto &P = *prototype;
+	//std::cout << prototype->Name() << "\n";
 	FunctionProtos[prototype->Name()] = std::move(prototype);
+	//std::cout << FunctionProtos[P.Name()]->name << " Added!" << "\n";
 	llvm::Function* TheFunction = CodeGeneration::GetFunction(P.Name());
 	//std::cout << "Function Found!\n";
 
-	//std::cout << "Assigning Name to Function...\n";
+	//std::cout << "Assigning Name and Type to Function...\n";
 	name = P.Name();
 	type = std::move(P.type);
-	//std::cout << "Name Assigned!\n";
+	//std::cout << "Name and Type Assigned!\n";
 
 	if(!TheFunction)
+	{
+		//std::cout << "Function " << P.Name() << " not found :c\n";
 		return nullptr;
+	}
+
+	//std::cout << "Checking for Binary Operators...\n";
 
 	if(P.IsBinaryOperator())
 		Parser::BinaryOpPrecedence[P.GetOperatorName()] = P.GetBinaryPrecedence();
+
+	//std::cout << "Binary Operators Checked!\n";
 
 	if(!TheFunction->empty())
 		return (llvm::Function*)CodeGeneration::LogErrorV("Function cannot be redefined.\n");
@@ -291,21 +329,67 @@ llvm::Function* AST::Function::codegen()
 	llvm::BasicBlock* BB = llvm::BasicBlock::Create(*CodeGeneration::TheContext, "entry", TheFunction);
 	CodeGeneration::Builder->SetInsertPoint(BB);
 
+	llvm::DIFile* Unit = CodeGeneration::DBuilder->createFile(CodeGeneration::DebugInfo::TheCU->getFilename(),
+															  CodeGeneration::DebugInfo::TheCU->getDirectory());
+
+	llvm::DIScope* FContext = Unit;
+
+	unsigned LineNo = 0, ScopeLine = 0;
+
+	llvm::DISubprogram* SP = CodeGeneration::DBuilder->createFunction(
+
+		FContext, P.Name(), llvm::StringRef(), Unit, LineNo,
+
+		CreateFunctionType(TheFunction->arg_size(), type.get()),
+
+		ScopeLine,
+		llvm::DINode::FlagPrototyped,
+
+		llvm::DISubprogram::SPFlagDefinition
+
+		);
+
+	TheFunction->setSubprogram(SP);
+
+	//std::cout << "Subprogram Successfully Created!\n";
+
+	CodeGeneration::DebugInfo::LexicalBlocks.push_back(SP);
+	//AST::EmitLocation(nullptr);
+
 	CodeGeneration::NamedValues.clear();
+
+	unsigned ArgIdx = 0;
 
 	for(auto& A : TheFunction->args())
 	{
 		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, std::string(A.getName()));
 
+		llvm::DILocalVariable* D = CodeGeneration::DBuilder->createParameterVariable(
+			SP, A.getName(), ArgIdx, Unit, LineNo, AST::GetFunctionDIType(P.arguments[ArgIdx].first.get()), true
+			);
+
+		CodeGeneration::DBuilder->insertDeclare(Alloca, D, CodeGeneration::DBuilder->createExpression(),
+			llvm::DILocation::get(SP->getContext(), LineNo, 0, SP), CodeGeneration::Builder->GetInsertBlock());
+
 		CodeGeneration::Builder->CreateStore(&A, Alloca);
 
 		auto getNameOfA = std::string(A.getName());
 		CodeGeneration::NamedValues[getNameOfA] = Alloca;
+
+		ArgIdx++;
 	}
+
+	//AST::EmitLocation(body.get());
+
+	//std::cout << "Emit Location (body) successfull!\n";
 
 	if(llvm::Value* RetVal = body->codegen())
 	{
+		//std::cout << "Body generated!\n";
+
 		CodeGeneration::Builder->CreateRet(RetVal);
+
+		CodeGeneration::DebugInfo::LexicalBlocks.pop_back();
 
 		llvm::verifyFunction(*TheFunction);
 
@@ -315,11 +399,19 @@ llvm::Function* AST::Function::codegen()
 	}
 
 	TheFunction->eraseFromParent();
+
+	if(P.IsBinaryOperator())
+		Parser::BinaryOpPrecedence.erase(prototype->GetOperatorName());
+
+	CodeGeneration::DebugInfo::LexicalBlocks.pop_back();
+
 	return nullptr;
 }
 
 llvm::Value* AST::If::codegen()
 {
+	//AST::EmitLocation(this);
+
 	llvm::Value* ConditionV = Condition->codegen();
 	if(!ConditionV)
 		return nullptr;
@@ -393,6 +485,8 @@ llvm::Value* AST::For::codegen()
 	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
 
 	llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, varName);
+
+	//AST::EmitLocation(this);
 
 	llvm::Value* StartVal = Start->codegen();
 	if(!StartVal)
@@ -509,5 +603,114 @@ llvm::Value* AST::Unary::codegen()
 	if(!F)
 		return CodeGeneration::LogErrorV(std::string("Unknown unary operator: ") + OpCode);
 
+	//AST::EmitLocation(this);
 	return CodeGeneration::Builder->CreateCall(F, OperandV, "unop");
+}
+
+llvm::Value* AST::Var::codegen()
+{
+	//std::cout << "CodeGen Var..." << std::endl;
+
+	std::vector<llvm::AllocaInst*> OldBindings;
+
+	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+
+	for(unsigned i = 0, e = VarNames.size(); i != e; ++i)
+	{
+		const std::string& VarName = VarNames[i].name;
+		Expression* Init = VarNames[i].body.get();
+
+		llvm::Value* InitVal = nullptr;
+
+		if(Init)
+		{
+			//std::cout << "CodeGen Init..." << std::endl;
+
+			InitVal = Init->codegen();
+
+			if(!InitVal)
+				return nullptr;
+
+			//std::cout << "CodeGen Init Successfull!" << std::endl;
+		}
+		else
+		{
+			if(dynamic_cast<Double*>(VarNames[i].type.get()))
+				InitVal = llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0));
+			else if(dynamic_cast<Float*>(VarNames[i].type.get()))
+				InitVal = llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0f));
+			else if(dynamic_cast<Integer*>(VarNames[i].type.get()))
+				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true));
+		}
+
+		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
+		CodeGeneration::Builder->CreateStore(InitVal, Alloca);
+
+		OldBindings.push_back(CodeGeneration::NamedValues[VarName]);
+
+		CodeGeneration::NamedValues[VarName] = Alloca;
+	}
+
+	//AST::EmitLocation(this);
+
+	//std::cout << "CodeGen Body..." << std::endl;
+
+	llvm::Value* BodyVal = Body->codegen();
+	if(!BodyVal)
+		return nullptr;
+
+	//std::cout << "CodeGen Body Successfull!" << std::endl;
+
+	for(unsigned i = 0, e = VarNames.size(); i != e; ++i)
+	{
+		CodeGeneration::NamedValues[VarNames[i].name] = OldBindings[i];
+	}
+
+	return BodyVal;
+}
+
+void AST::EmitLocation(AST::Expression* a)
+{
+	if (!a)
+    	return CodeGeneration::Builder->SetCurrentDebugLocation(llvm::DebugLoc());
+
+	llvm::DIScope* Scope = nullptr;
+
+	if(CodeGeneration::DebugInfo::LexicalBlocks.empty())
+		Scope = CodeGeneration::DebugInfo::TheCU;
+	else
+		Scope = CodeGeneration::DebugInfo::LexicalBlocks.back();
+
+	CodeGeneration::Builder->SetCurrentDebugLocation(
+
+		llvm::DILocation::get(Scope->getContext(), a->GetLine(), a->GetColumn(), Scope)
+
+		);
+}
+
+llvm::DIType* AST::GetFunctionDIType(AST::Expression* t)
+{
+	bool isDouble = dynamic_cast<AST::Double*>(t) != nullptr;
+	bool isInteger = dynamic_cast<AST::Integer*>(t) != nullptr;
+	bool isFloat = dynamic_cast<AST::Float*>(t) != nullptr;
+
+	if(isDouble) { return CodeGeneration::DebugInfo::getDoubleTy(); }
+	if(isInteger) { return CodeGeneration::DebugInfo::getIntegerTy(); }
+	if(isFloat) { return CodeGeneration::DebugInfo::getFloatTy(); }
+
+	return nullptr;
+}
+
+llvm::DISubroutineType* AST::CreateFunctionType(unsigned NumArgs, AST::Expression* t) 
+{
+	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
+	llvm::DIType *Typ = AST::GetFunctionDIType(t);
+	
+	// Add the result type.
+	EltTys.push_back(Typ);
+	
+	for (unsigned i = 0, e = NumArgs; i != e; ++i)
+	  EltTys.push_back(Typ);
+	
+	return CodeGeneration::DBuilder->createSubroutineType(CodeGeneration::DBuilder->getOrCreateTypeArray(EltTys));
 }

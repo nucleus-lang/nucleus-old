@@ -1,1 +1,1 @@
-/d/msys64/mingw64/bin/clang++ Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `/d/msys64/mingw64/bin/llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native` -frtti -o nucleus
+/d/msys64/mingw64/bin/clang++ Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `/d/msys64/mingw64/bin/llvm-config --cxxflags --ldflags --system-libs --libs all` -frtti -o nucleus

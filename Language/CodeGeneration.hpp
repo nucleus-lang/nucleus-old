@@ -9,17 +9,24 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Utils.h"
+#include "llvm/IR/DIBuilder.h"
 #include "JITCompiler.hpp"
 #include <map>
 
@@ -46,6 +53,21 @@ struct CodeGeneration
 
 	static void StartJIT();
 	static void Initialize();
+
+	static void CompileToObjectCode();
+
+	static std::unique_ptr<llvm::DIBuilder> DBuilder;
+
+	struct DebugInfo
+	{
+		static llvm::DICompileUnit* TheCU;
+		static llvm::DIType* DblTy, *IntTy, *FloTy;
+		static std::vector<llvm::DIScope*> LexicalBlocks;
+
+		static llvm::DIType* getDoubleTy();
+		static llvm::DIType* getIntegerTy();
+		static llvm::DIType* getFloatTy();
+	};
 };
 
 #endif

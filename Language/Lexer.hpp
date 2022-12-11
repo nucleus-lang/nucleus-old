@@ -43,10 +43,36 @@ enum Token
   TK_Then = -18,
 };
 
+struct SourceLocation
+{
+  int Line;
+  int Column;
+};
+
 struct Lexer
 {
     static std::string IdentifierStr; // Filled in if tok_identifier
     static std::string NumValString;  // Filled in if tok_number
+
+    static SourceLocation CurrentLocation;
+    static SourceLocation LexerLocation;
+
+    static int Advance()
+    {
+      int LastChar = getchar();
+
+      if(LastChar == '\n' || LastChar == '\r')
+      {
+        LexerLocation.Line++;
+        LexerLocation.Column = 0;
+      }
+      else
+      {
+        LexerLocation.Column++;
+      }
+
+      return LastChar;
+    }
 
     static int CurrentToken;
     static int GetNextToken()
@@ -61,11 +87,13 @@ struct Lexer
       static int LastChar = ' ';
 
       while (isspace(LastChar))
-        LastChar = getchar();
+        LastChar = Advance();
+
+      CurrentLocation = LexerLocation;
     
       if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
         IdentifierStr = LastChar;
-        while (isalnum((LastChar = getchar())))
+        while (isalnum((LastChar = Advance())))
           IdentifierStr += LastChar;
     
         if (IdentifierStr == "func")
@@ -103,13 +131,13 @@ struct Lexer
 
       if(LastChar == ';')
       {
-        LastChar = getchar();
+        LastChar = Advance();
         return Token::TK_DotComma;
       }
 
       if(LastChar == ',')
       {
-        LastChar = getchar();
+        LastChar = Advance();
         return Token::TK_Comma;
       }
     
@@ -117,7 +145,7 @@ struct Lexer
         std::string NumStr;
         do {
           NumStr += LastChar;
-          LastChar = getchar();
+          LastChar = Advance();
         } while (isdigit(LastChar) || LastChar == '.' || LastChar == 'f');
     
         NumValString = NumStr;
@@ -127,7 +155,7 @@ struct Lexer
       if (LastChar == '#') {
         // Comment until end of line.
         do
-          LastChar = getchar();
+          LastChar = Advance();
         while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
     
         if (LastChar != EOF)
@@ -140,7 +168,7 @@ struct Lexer
     
       // Otherwise, just return the character as its ascii value.
       int ThisChar = LastChar;
-      LastChar = getchar();
+      LastChar = Advance();
       return ThisChar;
     }
 };
