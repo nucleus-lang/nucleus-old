@@ -38,7 +38,7 @@ llvm::Value* AST::Integer::codegen()
 	//std::cout << "CodeGen Integer...\n";
 	CodeGeneration::isPureNumber = false;
 	//AST::EmitLocation(this);
-	return llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, value, true));
+	return llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(bit, value, true));
 }
 
 llvm::Value* AST::Float::codegen()
@@ -185,8 +185,13 @@ llvm::Value* AST::Binary::codegen()
 		}
 		else if(isInt)
 		{
+			AST::Integer* LInt = (AST::Integer*)lhs.get();
+
+			if(!LInt)
+				return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
+
 			//std::cout << "Compare type: Integer\n";
-			opLLVM = CodeGeneration::Builder->CreateIntCast(L, llvm::Type::getInt32Ty(*CodeGeneration::TheContext), true, "booltmp");
+			opLLVM = CodeGeneration::Builder->CreateIntCast(L, GetASTIntegerType(LInt), true, "booltmp");
 		}
 	}
 		//case '<':
@@ -247,7 +252,10 @@ llvm::Function* AST::FunctionPrototype::codegen()
 		if(dynamic_cast<Double*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getDoubleTy(*CodeGeneration::TheContext));
 		else if(dynamic_cast<Integer*>(i.first.get()) != nullptr)
-			llvmArgs.push_back(llvm::Type::getInt32Ty(*CodeGeneration::TheContext));
+		{
+			Integer* getI = (Integer*)i.first.get();
+			llvmArgs.push_back(GetASTIntegerType(getI));
+		}
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
 		else
@@ -262,7 +270,13 @@ llvm::Function* AST::FunctionPrototype::codegen()
 	if(dynamic_cast<Double*>(type.get()) != nullptr)
 		FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(*CodeGeneration::TheContext), llvmArgs, false);
 	else if(dynamic_cast<Integer*>(type.get()) != nullptr)
-		FT = llvm::FunctionType::get(llvm::Type::getInt32Ty(*CodeGeneration::TheContext), llvmArgs, false);
+	{
+		AST::Integer* getI = (AST::Integer*)type.get();
+
+		llvm::Type* getASTIntType = GetASTIntegerType(getI);
+
+		FT = llvm::FunctionType::get(getASTIntType, llvmArgs, false);
+	}
 	else if(dynamic_cast<Float*>(type.get()) != nullptr)
 		FT = llvm::FunctionType::get(llvm::Type::getFloatTy(*CodeGeneration::TheContext), llvmArgs, false);
 	else
@@ -536,7 +550,9 @@ llvm::Value* AST::For::codegen()
 		}
 		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
 		{
-			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 1, true));
+			Integer* getI = (Integer*)varType.get();
+
+			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 1, true));
 			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
 		}
 		else
@@ -562,8 +578,10 @@ llvm::Value* AST::For::codegen()
 	{
 		//std::cout << "Adding ConstantInt loop condition...\n";
 
+		Integer* getI = (Integer*)varType.get();
+
 		EndCond = CodeGeneration::Builder->CreateICmpNE(
-			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true)), "loopcond");
+			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, true)), "loopcond");
 
 		//std::cout << "ConstantInt loop condition added!\n";
 	}
@@ -584,7 +602,10 @@ llvm::Value* AST::For::codegen()
 	if(dynamic_cast<Double*>(varType.get()) != nullptr)
 		return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*CodeGeneration::TheContext));
 	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
-		return llvm::Constant::getNullValue(llvm::Type::getInt32Ty(*CodeGeneration::TheContext));
+	{
+		Integer* getI = (Integer*)varType.get();
+		return llvm::Constant::getNullValue(GetASTIntegerType(getI));
+	}
 	else if(dynamic_cast<Float*>(varType.get()) != nullptr)
 		return llvm::Constant::getNullValue(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
 	else
@@ -640,7 +661,11 @@ llvm::Value* AST::Var::codegen()
 			else if(dynamic_cast<Float*>(VarNames[i].type.get()))
 				InitVal = llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0f));
 			else if(dynamic_cast<Integer*>(VarNames[i].type.get()))
-				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true));
+			{
+				Integer* getI = (Integer*)VarNames[i].type.get();
+
+				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, true));
+			}
 		}
 
 		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
@@ -713,4 +738,22 @@ llvm::DISubroutineType* AST::CreateFunctionType(unsigned NumArgs, AST::Expressio
 	  EltTys.push_back(Typ);
 	
 	return CodeGeneration::DBuilder->createSubroutineType(CodeGeneration::DBuilder->getOrCreateTypeArray(EltTys));
+}
+
+llvm::Type* AST::GetASTIntegerType(AST::Integer* getI)
+{
+	if(getI->bit == 1)
+		return llvm::Type::getInt1Ty(*CodeGeneration::TheContext);
+	else if(getI->bit == 8)
+		return llvm::Type::getInt8Ty(*CodeGeneration::TheContext);
+	else if(getI->bit == 16)
+		return llvm::Type::getInt16Ty(*CodeGeneration::TheContext);
+	else if(getI->bit == 32)
+		return llvm::Type::getInt32Ty(*CodeGeneration::TheContext);
+	else if(getI->bit == 64)
+		return llvm::Type::getInt64Ty(*CodeGeneration::TheContext);
+	else if(getI->bit == 128)
+		return llvm::Type::getInt128Ty(*CodeGeneration::TheContext);
+
+	return llvm::Type::getInt32Ty(*CodeGeneration::TheContext);
 }

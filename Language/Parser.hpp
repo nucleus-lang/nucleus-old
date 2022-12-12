@@ -345,7 +345,29 @@ struct Parser
 	static std::unique_ptr<AST::Expression> ParseFunctionType()
 	{
 		if(Lexer::CurrentToken == Token::TK_Integer)
-			return std::make_unique<AST::Integer>(0);
+		{
+			auto i = std::make_unique<AST::Integer>(0);
+
+			Lexer::GetNextToken();
+
+			if(Lexer::CurrentToken == Token::TK_Number)
+			{
+				if(Lexer::NumValString.find(".") != std::string::npos || Lexer::NumValString.find("f") != std::string::npos)
+				{
+					i->bit = 32;
+					return i;
+				}
+
+				int intByte = std::stoi(Lexer::NumValString);
+
+				i->bit = intByte;
+				return i;
+			}
+			else
+				i->bit = 32;
+
+			return i;
+		}
 		else if(Lexer::CurrentToken == Token::TK_Double)
 			return std::make_unique<AST::Double>(0);
 		else if(Lexer::CurrentToken == Token::TK_Float)

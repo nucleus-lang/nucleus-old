@@ -58,17 +58,23 @@ func PrintDensity(d: double) -> double
 	{
 		putchard(32.0);
 	}
-	else if(d > 4.0)
-	{
-		putchard(46.0);
-	}
-	else if(d > 2.0)
-	{
-		putchard(43.0);
-	}
 	else
-	{
-		putchard(42.0);
+	{	
+		if(d > 4.0)
+		{
+			putchard(46.0);
+		}
+		else 
+		{
+			if(d > 2.0)
+			{
+				putchard(43.0);
+			}
+			else
+			{
+				putchard(42.0);
+			}
+		}
 	}
 }
 

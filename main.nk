@@ -1,19 +1,13 @@
-extern putchard(x: double) -> double;
-extern printd(x: double) -> double;
+extern HelloWorld() -> double;
 
-func binary : 1 (x: int, y: int) -> int
+func main() -> double
 {
-	y;
-}
+	var One: 						int 1 = 1;
+	var Eight: 						int 8 = 8;
+	var Sixteen: 					int 16 = 16;
+	var ThirtyTwo: 					int 32 = 32;
+	var SixtyFour: 					int 64 = 64;
+	var OneHundreadAndTwentyEight:  int 128 = 128;
 
-func test(x: int) -> int
-{
-	var a: int = 42;
-
-	x + a;
-}
-
-func main() -> int
-{
-	test(4);
+	HelloWorld();
 }

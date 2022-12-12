@@ -36,6 +36,7 @@ struct AST
 		int intValue = 0;
 		double doubleValue = 0;
 		float floatValue = 0;
+		unsigned bit;
 		std::string valueAsString;
 		Number(std::string val) 
 		{
@@ -73,6 +74,7 @@ struct AST
 	struct Integer : public Expression
 	{
 		int value;
+		unsigned int bit;
 		Integer(int val) : value(val) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
@@ -323,6 +325,8 @@ struct AST
 	static llvm::DIType* GetFunctionDIType(AST::Expression* t);
 	static void EmitLocation(AST::Expression* AST);
 	static llvm::DISubroutineType* CreateFunctionType(unsigned NumArgs, AST::Expression* t);
+
+	static llvm::Type* GetASTIntegerType(AST::Integer* i);
 };
 
 #endif
