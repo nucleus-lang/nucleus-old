@@ -1,6 +1,5 @@
 func main() -> int
 {
-	var something: int = true + 'A' - 'B' + false * 'F' + true;
-
-	something;
+	var yes: int = 1;
+	4 + yes;
 }
