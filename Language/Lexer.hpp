@@ -41,6 +41,11 @@ enum Token
   TK_Unary = -17,
 
   TK_Then = -18,
+
+  TK_Char = -19,
+  TK_Bool = -20,
+
+  TK_CharValue = -21,
 };
 
 struct SourceLocation
@@ -51,8 +56,9 @@ struct SourceLocation
 
 struct Lexer
 {
-    static std::string IdentifierStr; // Filled in if tok_identifier
-    static std::string NumValString;  // Filled in if tok_number
+    static std::string IdentifierStr; // Filled in if TK_Identifier
+    static std::string NumValString;  // Filled in if TK_Number
+    static char CharVal;              // Filled in if TK_Char
 
     static SourceLocation CurrentLocation;
     static SourceLocation LexerLocation;
@@ -126,6 +132,12 @@ struct Lexer
         if(IdentifierStr == "unary")
           return Token::TK_Unary;
 
+        if(IdentifierStr == "char")
+          return Token::TK_Char;
+
+        if(IdentifierStr == "bool")
+          return Token::TK_Bool;
+
         return Token::TK_Identifier;
       }
 
@@ -139,6 +151,48 @@ struct Lexer
       {
         LastChar = Advance();
         return Token::TK_Comma;
+      }
+
+      if(LastChar == '\'')
+      {
+        std::string CharStr;
+
+        LastChar = Advance();
+
+        do
+        {
+          CharStr += LastChar;
+          LastChar = Advance();
+        } while (isalpha(LastChar) && LastChar != '\'');
+
+        if(LastChar == '\'')
+          LastChar = Advance();
+
+        if(CharStr.size() == 2)
+        {
+          if(CharStr[0] == '\\')
+          {
+            if(CharStr[1] == 'n')
+              CharVal = '\n';
+            else if(CharStr[1] == 'r')
+              CharVal = '\r';
+            else if(CharStr[1] == 't')
+              CharVal = '\t';
+            else if(CharStr[1] == '0')
+              CharVal = '\0';
+            else if(CharStr[1] == '\'')
+              CharVal = '\'';
+          }
+        }
+        else if(CharStr.size() == 1)
+        {
+          CharVal = CharStr[0];
+        }
+        else
+          CharVal = ' ';
+
+        return Token::TK_CharValue;
+
       }
     
       if (isdigit(LastChar) || LastChar == '.' || LastChar == 'f') { // Number: [0-9.]+

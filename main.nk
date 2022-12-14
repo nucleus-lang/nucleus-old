@@ -1,4 +1,6 @@
-func main() -> int
+func main() -> int 16
 {
-	0;
+	var something: int 32 = 'A' + 'B';
+
+	something;
 }

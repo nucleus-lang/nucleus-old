@@ -6,6 +6,7 @@
 int Lexer::CurrentToken;
 std::string Lexer::IdentifierStr;
 std::string Lexer::NumValString;
+char Lexer::CharVal;
 std::map<char, int> Parser::BinaryOpPrecedence;
 
 SourceLocation Lexer::CurrentLocation;

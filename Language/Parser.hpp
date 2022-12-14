@@ -42,6 +42,13 @@ struct Parser
 		return std::move(Result);
 	}
 
+	static std::unique_ptr<AST::Expression> ParseCharValue()
+	{
+		auto Result = std::make_unique<AST::Number>(std::to_string((int)Lexer::CharVal));
+		Lexer::GetNextToken();
+		return std::move(Result);
+	}
+
 	static std::unique_ptr<AST::Expression> ParseParenthesis()
 	{
 		Lexer::GetNextToken();
@@ -117,6 +124,8 @@ struct Parser
 				return ParseIdentifier();
 			case Token::TK_Number:
 				return ParseNumber();
+			case Token::TK_CharValue:
+				return ParseCharValue();
 			case Token::TK_DotComma:
 				return ParseDotComma();
 			case '(':
@@ -371,10 +380,30 @@ struct Parser
 
 			return i;
 		}
+		else if(Lexer::CurrentToken == Token::TK_Bool)
+		{
+			auto i = std::make_unique<AST::Integer>(0);
+			i->bit = 1;
+			Lexer::GetNextToken();
+			return i;
+		}
+		else if(Lexer::CurrentToken == Token::TK_Char)
+		{
+			auto i = std::make_unique<AST::Integer>(0);
+			i->bit = 8;
+			Lexer::GetNextToken();
+			return i;
+		}
 		else if(Lexer::CurrentToken == Token::TK_Double)
+		{
+			Lexer::GetNextToken();
 			return std::make_unique<AST::Double>(0);
+		}
 		else if(Lexer::CurrentToken == Token::TK_Float)
+		{
+			Lexer::GetNextToken();
 			return std::make_unique<AST::Float>(0);
+		}
 
 		return nullptr;
 	}
@@ -632,8 +661,6 @@ struct Parser
 			Type = ParseFunctionType();
 			if(!Type) return nullptr;
 
-			Lexer::GetNextToken();
-
 			std::unique_ptr<AST::Expression> Init;
 			if(Lexer::CurrentToken == '=')
 			{
@@ -659,7 +686,7 @@ struct Parser
 		}
 
 		if(Lexer::CurrentToken != Token::TK_DotComma)
-			return LogError("Expected ';' after 'var'.");
+			return LogError("Expected ';' after 'var'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		auto Body = ParseExpression();
 		if(!Body)
