@@ -334,8 +334,6 @@ struct Parser
 		if(!FnType)
 			return LogErrorP("Expected function type.");
 
-		Lexer::GetNextToken();
-
 		if(Kind && ArgumentNames.size() != Kind)
 			return LogErrorP("Invalid number of operands for operator.");
 
@@ -361,10 +359,15 @@ struct Parser
 				int intByte = std::stoi(Lexer::NumValString);
 
 				i->bit = intByte;
+
+				Lexer::GetNextToken();
+
 				return i;
 			}
 			else
+			{
 				i->bit = 32;
+			}
 
 			return i;
 		}
@@ -385,7 +388,7 @@ struct Parser
 			return nullptr;
 
 		if(Lexer::CurrentToken != '{')
-			LogErrorF("Expected '{'");
+			LogErrorF("Expected '{'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		Lexer::GetNextToken();
 

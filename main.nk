@@ -1,4 +1,4 @@
-func main() -> double
+func main() -> int
 {
-	0.0;
+	0;
 }
