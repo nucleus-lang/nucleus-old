@@ -46,6 +46,9 @@ enum Token
   TK_Bool = -20,
 
   TK_CharValue = -21,
+
+  TK_True = -22,
+  TK_False = -23,
 };
 
 struct SourceLocation
@@ -137,6 +140,11 @@ struct Lexer
 
         if(IdentifierStr == "bool")
           return Token::TK_Bool;
+
+        if(IdentifierStr == "true")
+          return Token::TK_True;
+        if(IdentifierStr == "false")
+          return Token::TK_False;
 
         return Token::TK_Identifier;
       }

@@ -1,6 +1,6 @@
-func main() -> int 16
+func main() -> int
 {
-	var something: int 32 = 'A' + 'B';
+	var something: int = true + 'A' - 'B' + false * 'F' + true;
 
 	something;
 }

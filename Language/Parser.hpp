@@ -49,6 +49,20 @@ struct Parser
 		return std::move(Result);
 	}
 
+	static std::unique_ptr<AST::Expression> ParseTrue()
+	{
+		auto Result = std::make_unique<AST::Number>("1");
+		Lexer::GetNextToken();
+		return std::move(Result);
+	}
+
+	static std::unique_ptr<AST::Expression> ParseFalse()
+	{
+		auto Result = std::make_unique<AST::Number>("0");
+		Lexer::GetNextToken();
+		return std::move(Result);
+	}
+
 	static std::unique_ptr<AST::Expression> ParseParenthesis()
 	{
 		Lexer::GetNextToken();
@@ -126,6 +140,12 @@ struct Parser
 				return ParseNumber();
 			case Token::TK_CharValue:
 				return ParseCharValue();
+
+			case Token::TK_True:
+				return ParseTrue();
+			case Token::TK_False:
+				return ParseFalse();	
+
 			case Token::TK_DotComma:
 				return ParseDotComma();
 			case '(':
