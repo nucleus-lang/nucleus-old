@@ -1,9 +1,0 @@
-extern printd(x: double) -> double;
-
-func main() -> double
-{
-	for(i: double = 0.0; i < 1000.0; 1.0)
-	{
-		printd(i);
-	}
-}

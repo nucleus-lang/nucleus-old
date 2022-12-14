@@ -1,13 +1,4 @@
-extern HelloWorld() -> double;
-
 func main() -> double
 {
-	var One: 						int 1 = 1;
-	var Eight: 						int 8 = 8;
-	var Sixteen: 					int 16 = 16;
-	var ThirtyTwo: 					int 32 = 32;
-	var SixtyFour: 					int 64 = 64;
-	var OneHundreadAndTwentyEight:  int 128 = 128;
-
-	HelloWorld();
+	0.0;
 }
