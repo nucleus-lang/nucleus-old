@@ -23,10 +23,27 @@ llvm::Value* AST::Number::codegen()
 	{
 		//return llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat((double)intValue));
 
-		llvm::Type *i32_type = llvm::IntegerType::getInt32Ty(*CodeGeneration::TheContext);
+		llvm::Type *getType = nullptr;
+
+		if(bit == 1)
+			getType = llvm::IntegerType::getInt1Ty(*CodeGeneration::TheContext);
+		else if(bit == 8)
+			getType = llvm::IntegerType::getInt8Ty(*CodeGeneration::TheContext);
+		else if(bit == 16)
+			getType = llvm::IntegerType::getInt16Ty(*CodeGeneration::TheContext);
+		else if(bit == 32)
+			getType = llvm::IntegerType::getInt32Ty(*CodeGeneration::TheContext);
+		else if(bit == 64)
+			getType = llvm::IntegerType::getInt64Ty(*CodeGeneration::TheContext);
+		else if(bit == 128)
+			getType = llvm::IntegerType::getInt128Ty(*CodeGeneration::TheContext);
+		else
+			getType = llvm::IntegerType::getInt32Ty(*CodeGeneration::TheContext);
+
+
 		CodeGeneration::isPureNumber = true;
 		//AST::EmitLocation(this);
-		return llvm::ConstantInt::get(i32_type, intValue, true);
+		return llvm::ConstantInt::get(getType, intValue, true);
 	}
 
 	//AST::EmitLocation(this);
@@ -63,15 +80,28 @@ llvm::Value* AST::Variable::codegen()
 
 	llvm::AllocaInst* V = CodeGeneration::NamedValues[name];
 
+	if(!V)
+		CodeGeneration::LogErrorV("Unknown variable name: " + name + "\n");
+
 	bool isInt = V->getAllocatedType()->isIntegerTy();
+	
+	if(isArrayElement)
+	{
+		llvm::Value* index = arrayIndex->codegen();
+
+		llvm::Type* vType = V->getAllocatedType();
+
+		llvm::Value* indexList[2] = {llvm::ConstantInt::get(index->getType(), 0), index};
+
+		std::string idx = name + "idx";
+
+		return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+	}
 
 	if(isInt)
 		CodeGeneration::isPureNumber = true;
 	else
 		CodeGeneration::isPureNumber = false;
-
-	if(!V)
-		CodeGeneration::LogErrorV("Unknown variable name.\n");
 
 	//AST::EmitLocation(this);
 	return CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str());
@@ -165,7 +195,7 @@ llvm::Value* AST::Binary::codegen()
 		if(pureIntCount == 2)
 		{
 			//std::cout << "Comparing two pure integers.\n";
-			L = CodeGeneration::Builder->CreateICmpULT(L, R, "cmptmp");
+			L = CodeGeneration::Builder->CreateICmpULT(L, CodeGeneration::Builder->CreateIntCast(R, L->getType(), true, "castmp"), "cmptmp");
 		}
 		else
 		{
@@ -186,6 +216,8 @@ llvm::Value* AST::Binary::codegen()
 		else if(isInt)
 		{
 			AST::Integer* LInt = (AST::Integer*)lhs.get();
+
+			//std::cout << "CodeGen Condition Integer...\n";
 
 			if(!LInt)
 				return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
@@ -523,6 +555,8 @@ llvm::Value* AST::For::codegen()
 	llvm::Value* StepVal = nullptr, *NextVar = nullptr, 
 	*CurVar = CodeGeneration::Builder->CreateLoad(Alloca->getAllocatedType(), Alloca, varName.c_str());
 
+	//std::cout << "CodeGen For Loop Step...\n";
+
 	if(Step)
 	{
 		StepVal = Step->codegen();
@@ -559,13 +593,19 @@ llvm::Value* AST::For::codegen()
 			return CodeGeneration::LogErrorV("Unknown function type.");
 	}
 
+	//std::cout << "For Loop Step generated!\n";
+
 	llvm::Value* EndCond = End->codegen();
 	if(!EndCond)
 		return nullptr;
 
 	CodeGeneration::Builder->CreateStore(NextVar, Alloca);
 
-	if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
+	bool isDouble = TheFunction->getFunctionType()->getReturnType()->isDoubleTy();
+	bool isInt = TheFunction->getFunctionType()->getReturnType()->isIntegerTy();
+	bool isFloat = TheFunction->getFunctionType()->getReturnType()->isFloatTy();
+
+	if(isDouble || isFloat)
 	{
 		//std::cout << "Adding ConstantFP loop condition...\n";
 
@@ -574,14 +614,19 @@ llvm::Value* AST::For::codegen()
 
 		//std::cout << "ConstantFP loop condition added!\n";
 	}
-	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+	else if(isInt)
 	{
 		//std::cout << "Adding ConstantInt loop condition...\n";
 
 		Integer* getI = (Integer*)varType.get();
 
+		llvm::IntegerType* ty = static_cast<llvm::IntegerType*>(TheFunction->getFunctionType()->getReturnType());
+
+		if(ty == nullptr)
+			return CodeGeneration::LogErrorV("Function Type returned nullptr.");
+
 		EndCond = CodeGeneration::Builder->CreateICmpNE(
-			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, true)), "loopcond");
+			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(ty->getBitWidth(), 0, true)), "loopcond");
 
 		//std::cout << "ConstantInt loop condition added!\n";
 	}
@@ -599,17 +644,29 @@ llvm::Value* AST::For::codegen()
 	else
 		CodeGeneration::NamedValues.erase(varName);
 
-	if(dynamic_cast<Double*>(varType.get()) != nullptr)
-		return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*CodeGeneration::TheContext));
-	else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+	if(Next != nullptr)
 	{
-		Integer* getI = (Integer*)varType.get();
-		return llvm::Constant::getNullValue(GetASTIntegerType(getI));
+		llvm::Value* NextVar = Next->codegen();
+
+		if(!NextVar)
+			return nullptr;
+
+		return NextVar;
 	}
-	else if(dynamic_cast<Float*>(varType.get()) != nullptr)
-		return llvm::Constant::getNullValue(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
 	else
-		return CodeGeneration::LogErrorV("Unknown function type.");
+	{
+		if(dynamic_cast<Double*>(varType.get()) != nullptr)
+			return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*CodeGeneration::TheContext));
+		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
+		{
+			Integer* getI = (Integer*)varType.get();
+			return llvm::Constant::getNullValue(GetASTIntegerType(getI));
+		}
+		else if(dynamic_cast<Float*>(varType.get()) != nullptr)
+			return llvm::Constant::getNullValue(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
+		else
+			return CodeGeneration::LogErrorV("Unknown function type.");
+	}
 }
 
 llvm::Value* AST::Unary::codegen()
@@ -647,7 +704,18 @@ llvm::Value* AST::Var::codegen()
 		{
 			//std::cout << "CodeGen Init..." << std::endl;
 
-			InitVal = Init->codegen();
+			if(dynamic_cast<ArrayInitContent*>(Init) != nullptr)
+			{
+				if(dynamic_cast<Array*>(VarNames[i].type.get()))
+				{
+					Array* getA = (Array*)VarNames[i].type.get();
+					InitVal = getA->codegen();
+				}
+			}
+			else
+			{
+				InitVal = Init->codegen();
+			}
 
 			if(!InitVal)
 				return nullptr;
@@ -666,9 +734,21 @@ llvm::Value* AST::Var::codegen()
 
 				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, true));
 			}
+			else if(dynamic_cast<Array*>(VarNames[i].type.get()))
+			{
+				Array* getA = (Array*)VarNames[i].type.get();
+
+				InitVal = getA->codegen();
+			}
 		}
 
-		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
+		llvm::AllocaInst* Alloca = nullptr;
+
+		if(dynamic_cast<Array*>(VarNames[i].type.get()))
+			Alloca = CodeGeneration::Builder->CreateAlloca(InitVal->getType(), 0, VarName.c_str());
+		else
+			Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
+
 		CodeGeneration::Builder->CreateStore(InitVal, Alloca);
 
 		OldBindings.push_back(CodeGeneration::NamedValues[VarName]);
@@ -692,6 +772,66 @@ llvm::Value* AST::Var::codegen()
 	}
 
 	return BodyVal;
+}
+
+llvm::Value* AST::Array::codegen()
+{
+	llvm::Function* TheFunction = CodeGeneration::Builder->GetInsertBlock()->getParent();
+
+	llvm::Type* getT = nullptr;
+
+	if(dynamic_cast<Double*>(type.get()) != nullptr)
+		getT = llvm::Type::getDoubleTy(*CodeGeneration::TheContext);
+	else if(dynamic_cast<Integer*>(type.get()) != nullptr)
+	{
+		getT = GetASTIntegerType((Integer*)type.get());
+	}
+	else if(dynamic_cast<Float*>(type.get()) != nullptr)
+		getT = llvm::Type::getFloatTy(*CodeGeneration::TheContext);
+	else
+		return CodeGeneration::LogErrorV("Unknown function type.");
+
+	llvm::ArrayType* arrayType = llvm::ArrayType::get(getT, size);
+
+	std::vector<llvm::Constant*> values;
+
+	if(variables.size() == 0 || variables.size() != size)
+	{
+		for(unsigned int i = 0; i < size; i++)
+		{
+			if(dynamic_cast<Double*>(type.get()) != nullptr)
+				values.push_back(llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)));
+			else if(dynamic_cast<Float*>(type.get()) != nullptr)
+				values.push_back(llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0f)));
+			else if(dynamic_cast<Integer*>(type.get()) != nullptr)
+			{
+				Integer* getASTI = (Integer*)type.get();
+
+				values.push_back(llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getASTI->bit, 0, true)));
+			}
+		}
+	}
+	else
+	{
+		for(unsigned int i = 0; i < size; i++)
+		{
+			llvm::Value* getV = variables[i]->codegen();
+
+			if(static_cast<llvm::ConstantFP*>(getV) != nullptr)
+				values.push_back((llvm::ConstantFP*)getV);
+			else if(static_cast<llvm::ConstantInt*>(getV) != nullptr)
+				values.push_back((llvm::ConstantInt*)getV);
+			else
+				return CodeGeneration::LogErrorV("Variable initialized in array is not constant.");
+		}
+	}
+
+	return llvm::ConstantArray::get(arrayType, values);
+}
+
+llvm::Value* AST::ArrayInitContent::codegen()
+{
+	return CodeGeneration::LogErrorV("This codegen() shouldn't be executed! This expression is only used to store array information!");
 }
 
 void AST::EmitLocation(AST::Expression* a)

@@ -21,3 +21,9 @@ extern "C" DLLEXPORT double HelloWorld()
   printf("Hello World!\n");
   return 0;
 }
+
+extern "C" DLLEXPORT char printchar(char X)
+{
+  std::cout << X;
+  return X;
+}

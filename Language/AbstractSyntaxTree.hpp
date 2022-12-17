@@ -36,7 +36,7 @@ struct AST
 		int intValue = 0;
 		double doubleValue = 0;
 		float floatValue = 0;
-		unsigned bit;
+		unsigned bit = 32;
 		std::string valueAsString;
 		Number(std::string val) 
 		{
@@ -114,6 +114,9 @@ struct AST
 	struct Variable : public Expression
 	{
 		std::string name;
+		bool isArrayElement = false;
+		std::unique_ptr<Expression> arrayIndex;
+
 		Variable(SourceLocation Loc, const std::string& n) : Expression(Loc), name(n) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
@@ -247,14 +250,14 @@ struct AST
 		std::unique_ptr<Expression> varType;
 		std::string varName;
 
-		std::unique_ptr<Expression> Start, End, Step, Body;
+		std::unique_ptr<Expression> Start, End, Step, Body, Next;
 
 		For(std::unique_ptr<Expression> Type,
 			const std::string &VarName, std::unique_ptr<Expression> Start,
     	         std::unique_ptr<Expression> End, std::unique_ptr<Expression> Step,
-    	         std::unique_ptr<Expression> Body) : 
+    	         std::unique_ptr<Expression> Body, std::unique_ptr<Expression> Next) : 
 		varType(std::move(Type)), varName(VarName), Start(std::move(Start)), End(std::move(End)),
-    	  Step(std::move(Step)), Body(std::move(Body)) {}
+    	  Step(std::move(Step)), Body(std::move(Body)), Next(std::move(Next)) {}
 
     	llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
     	{
@@ -315,6 +318,54 @@ struct AST
 			}
 
 			Body->Dump(Indent(out, index) << "Body:", index + 1);
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
+	};
+
+	struct Array : public Expression
+	{
+		std::vector<std::unique_ptr<Expression>> variables;
+		std::unique_ptr<Expression> type;
+		unsigned int size;
+
+		Array(std::unique_ptr<Expression> ty,
+			unsigned int s
+			) :
+			size(s), type(std::move(ty)) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			Expression::Dump(out << "array", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
+	};
+
+	struct ArrayInitContent : public Expression
+	{
+		std::vector<std::unique_ptr<Expression>> variables;
+
+		ArrayInitContent(std::vector<std::unique_ptr<Expression>> v) :
+		variables(std::move(v)) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			Expression::Dump(out << "arraycontent", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
 
 			return out;
 		}

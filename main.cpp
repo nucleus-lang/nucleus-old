@@ -7,7 +7,10 @@ int Lexer::CurrentToken;
 std::string Lexer::IdentifierStr;
 std::string Lexer::NumValString;
 char Lexer::CharVal;
+
 std::map<char, int> Parser::BinaryOpPrecedence;
+AST::Array* Parser::lastArray = nullptr;
+unsigned int Parser::bracketCount = 0;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};
