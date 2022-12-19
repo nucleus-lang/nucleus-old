@@ -115,6 +115,7 @@ struct AST
 	{
 		std::string name;
 		bool isArrayElement = false;
+		bool isArrayPointer = false;
 		std::unique_ptr<Expression> arrayIndex;
 
 		Variable(SourceLocation Loc, const std::string& n) : Expression(Loc), name(n) {}
@@ -330,6 +331,7 @@ struct AST
 		std::vector<std::unique_ptr<Expression>> variables;
 		std::unique_ptr<Expression> type;
 		unsigned int size;
+		bool dynamicInitialization = false;
 
 		Array(std::unique_ptr<Expression> ty,
 			unsigned int s

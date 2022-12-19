@@ -43,7 +43,7 @@ llvm::Value* AST::Number::codegen()
 
 		CodeGeneration::isPureNumber = true;
 		//AST::EmitLocation(this);
-		return llvm::ConstantInt::get(getType, intValue, true);
+		return llvm::ConstantInt::get(getType, intValue, false);
 	}
 
 	//AST::EmitLocation(this);
@@ -55,7 +55,7 @@ llvm::Value* AST::Integer::codegen()
 	//std::cout << "CodeGen Integer...\n";
 	CodeGeneration::isPureNumber = false;
 	//AST::EmitLocation(this);
-	return llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(bit, value, true));
+	return llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(bit, value, false));
 }
 
 llvm::Value* AST::Float::codegen()
@@ -84,8 +84,19 @@ llvm::Value* AST::Variable::codegen()
 		CodeGeneration::LogErrorV("Unknown variable name: " + name + "\n");
 
 	bool isInt = V->getAllocatedType()->isIntegerTy();
+
+	//if(static_cast<llvm::ArrayType*>(V->getAllocatedType()) != nullptr)
+	//{
+	//	std::cout << "Is Array!\n";
+	//	std::string idx = name + "ptr";
+//
+	//	llvm::Value *i32zero = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, false));
+	//	llvm::Value *indexList[2] = {i32zero, i32zero};
+//
+	//	return CodeGeneration::Builder->CreateInBoundsGEP(i32zero->getType(), CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str()), llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+	//}
 	
-	if(isArrayElement)
+	if(isArrayElement || isArrayPointer)
 	{
 		llvm::Value* index = arrayIndex->codegen();
 
@@ -95,7 +106,10 @@ llvm::Value* AST::Variable::codegen()
 
 		std::string idx = name + "idx";
 
-		return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+		if(isArrayElement)
+			return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+		else if(isArrayPointer)
+			return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
 	}
 
 	if(isInt)
@@ -195,7 +209,7 @@ llvm::Value* AST::Binary::codegen()
 		if(pureIntCount == 2)
 		{
 			//std::cout << "Comparing two pure integers.\n";
-			L = CodeGeneration::Builder->CreateICmpULT(L, CodeGeneration::Builder->CreateIntCast(R, L->getType(), true, "castmp"), "cmptmp");
+			L = CodeGeneration::Builder->CreateICmpULT(L, CodeGeneration::Builder->CreateIntCast(R, L->getType(), false, "castmp"), "cmptmp");
 		}
 		else
 		{
@@ -223,7 +237,7 @@ llvm::Value* AST::Binary::codegen()
 				return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
 
 			//std::cout << "Compare type: Integer\n";
-			opLLVM = CodeGeneration::Builder->CreateIntCast(L, GetASTIntegerType(LInt), true, "booltmp");
+			opLLVM = CodeGeneration::Builder->CreateIntCast(L, GetASTIntegerType(LInt), false, "booltmp");
 		}
 	}
 		//case '<':
@@ -290,6 +304,10 @@ llvm::Function* AST::FunctionPrototype::codegen()
 		}
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
+		else if(dynamic_cast<Array*>(i.first.get()) != nullptr)
+		{
+			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+		}
 		else
 			return CodeGeneration::LogErrorFLLVM("One of the argument types is unknown.");
 	}
@@ -470,7 +488,7 @@ llvm::Value* AST::If::codegen()
 	{
 		ConditionV = CodeGeneration::Builder->CreateICmpNE(
 			ConditionV, 
-			llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, true)), 
+			llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, false)), 
 			"ifcond");
 	}
 	else if(isDouble || isFloat)
@@ -586,7 +604,7 @@ llvm::Value* AST::For::codegen()
 		{
 			Integer* getI = (Integer*)varType.get();
 
-			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 1, true));
+			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 1, false));
 			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
 		}
 		else
@@ -626,7 +644,7 @@ llvm::Value* AST::For::codegen()
 			return CodeGeneration::LogErrorV("Function Type returned nullptr.");
 
 		EndCond = CodeGeneration::Builder->CreateICmpNE(
-			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(ty->getBitWidth(), 0, true)), "loopcond");
+			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(ty->getBitWidth(), 0, false)), "loopcond");
 
 		//std::cout << "ConstantInt loop condition added!\n";
 	}
@@ -732,7 +750,7 @@ llvm::Value* AST::Var::codegen()
 			{
 				Integer* getI = (Integer*)VarNames[i].type.get();
 
-				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, true));
+				InitVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 0, false));
 			}
 			else if(dynamic_cast<Array*>(VarNames[i].type.get()))
 			{
@@ -807,7 +825,7 @@ llvm::Value* AST::Array::codegen()
 			{
 				Integer* getASTI = (Integer*)type.get();
 
-				values.push_back(llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getASTI->bit, 0, true)));
+				values.push_back(llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getASTI->bit, 0, false)));
 			}
 		}
 	}
@@ -831,7 +849,58 @@ llvm::Value* AST::Array::codegen()
 
 llvm::Value* AST::ArrayInitContent::codegen()
 {
-	return CodeGeneration::LogErrorV("This codegen() shouldn't be executed! This expression is only used to store array information!");
+	llvm::Type* getT = nullptr;
+
+	if(dynamic_cast<Number*>(variables[0].get()) != nullptr)
+	{
+
+		Number* num = (Number*)variables[0].get();
+
+		if(num->isDouble)
+		{
+			getT = llvm::Type::getDoubleTy(*CodeGeneration::TheContext);
+		}
+		else if(num->isInt)
+		{
+			auto i = std::make_unique<Integer>(0);
+			i->bit = num->bit;
+
+			getT = GetASTIntegerType(i.get());
+		}
+		else if(num->isFloat)
+		{
+			getT = llvm::Type::getFloatTy(*CodeGeneration::TheContext);
+		}
+		else
+			return CodeGeneration::LogErrorV("Unknown function type.");
+	}
+	else
+		return CodeGeneration::LogErrorV("Unknown function type.");
+
+	llvm::ArrayType* arrayType = llvm::ArrayType::get(getT, variables.size());
+
+	std::vector<llvm::Constant*> values;
+
+	for(unsigned int i = 0; i < variables.size(); i++)
+	{
+		llvm::Value* getV = variables[i]->codegen();
+
+		if(static_cast<llvm::ConstantFP*>(getV) != nullptr)
+			values.push_back((llvm::ConstantFP*)getV);
+		else if(static_cast<llvm::ConstantInt*>(getV) != nullptr)
+			values.push_back((llvm::ConstantInt*)getV);
+		else
+			return CodeGeneration::LogErrorV("Variable initialized in array is not constant.");
+	}
+
+	llvm::Value* indexList[2] = {llvm::ConstantInt::get(getT, 0), llvm::ConstantInt::get(getT, 0)};
+
+	llvm::Value* arr = llvm::ConstantArray::get(arrayType, values);
+
+	llvm::AllocaInst* V = CodeGeneration::Builder->CreateAlloca(arr->getType(), 0, "arrayalloc");
+	CodeGeneration::Builder->CreateStore(arr, V);
+
+	return CodeGeneration::Builder->CreateInBoundsGEP(V->getAllocatedType(), V, llvm::ArrayRef<llvm::Value*>(indexList, 2), "arrayinit");
 }
 
 void AST::EmitLocation(AST::Expression* a)

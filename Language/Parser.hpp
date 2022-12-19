@@ -8,6 +8,8 @@
 struct Parser
 {
 	static AST::Array* lastArray;
+	static std::vector<std::string> localArrayNames;
+	static std::string currentIdentifierString;
 	static unsigned int bracketCount;
 
 	static std::unique_ptr<AST::Expression> LogError(std::string str)
@@ -94,6 +96,21 @@ struct Parser
 		SourceLocation LitLoc = Lexer::CurrentLocation;
 
 		Lexer::GetNextToken();
+
+		for(auto i : localArrayNames)
+		{
+			if(i == idName)
+			{
+				std::unique_ptr<AST::Variable> arrayPointer = std::make_unique<AST::Variable>(LitLoc, idName);
+
+				auto Ind = std::make_unique<AST::Number>("0");
+
+				arrayPointer->arrayIndex = std::move(Ind);
+				arrayPointer->isArrayPointer = true;
+
+				return arrayPointer;
+			}
+		}
 
 		if(Lexer::CurrentToken == '[')
 		{
@@ -222,7 +239,43 @@ struct Parser
 
 			case '[':
 				return ParseArrayInit();
+
+			case Token::TK_StringContent:
+				return ParseStringContent();
 		}
+	}
+
+	static std::unique_ptr<AST::Expression> ParseString()
+	{
+		std::unique_ptr<AST::Integer> type = std::make_unique<AST::Integer>(0);
+		type->bit = 8;
+
+		Lexer::GetNextToken();
+
+		auto arr = std::make_unique<AST::Array>(std::move(type), 0);
+		arr->dynamicInitialization = true;
+
+		//std::cout << "Array " << currentIdentifierString << " parsed!\n";
+		localArrayNames.push_back(currentIdentifierString);
+
+		return arr;
+	}
+
+	static std::unique_ptr<AST::Expression> ParseStringContent()
+	{
+		std::vector<std::unique_ptr<AST::Expression>> variables;
+
+		for(int i = 0; i < Lexer::StringString.size(); i++)
+		{
+			std::unique_ptr<AST::Number> Result = std::make_unique<AST::Number>(std::to_string((int)Lexer::StringString[i]));
+			Result->bit = 8;
+
+			variables.push_back(std::move(Result));
+		}
+
+		Lexer::GetNextToken();
+
+		return std::make_unique<AST::ArrayInitContent>(std::move(variables));
 	}
 
 	static std::unique_ptr<AST::Expression> ParseExpression()
@@ -300,7 +353,8 @@ struct Parser
 	{
 		return Lexer::CurrentToken == Token::TK_Integer ||
 		Lexer::CurrentToken == Token::TK_Double ||
-		Lexer::CurrentToken == Token::TK_Float;
+		Lexer::CurrentToken == Token::TK_Float ||
+		Lexer::CurrentToken == Token::TK_String;
 	}
 
 	static std::unique_ptr<AST::FunctionPrototype> ParsePrototype()
@@ -387,6 +441,7 @@ struct Parser
 
 			SourceLocation VarLoc = Lexer::CurrentLocation;
 
+			currentIdentifierString = Lexer::IdentifierStr;
 			auto VarName = std::make_unique<AST::Variable>(VarLoc, Lexer::IdentifierStr);
 
 			if(Lexer::CurrentToken != ':')
@@ -492,26 +547,43 @@ struct Parser
 			Lexer::GetNextToken();
 			ty = std::make_unique<AST::Float>(0);
 		}
+		else if(Lexer::CurrentToken == Token::TK_String)
+		{
+			return ParseString();
+		}
 
 		if(Lexer::CurrentToken == '[')
 		{
 			unsigned int arraySize = 0;
 
 			Lexer::GetNextToken();
-	
-			if(Lexer::NumValString.find(".") != std::string::npos || Lexer::NumValString.find("f") != std::string::npos)
-				return LogError("Array size can only be an integer.");
-	
-			arraySize = std::stoi(Lexer::NumValString);
-	
-			Lexer::GetNextToken();
-	
+
+			bool dyn = false;
+			
 			if(Lexer::CurrentToken != ']')
-				return LogError("Expected ']' to close array size. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			{
+				if(Lexer::NumValString.find(".") != std::string::npos || Lexer::NumValString.find("f") != std::string::npos)
+					return LogError("Array size can only be an integer.");
 	
+				arraySize = std::stoi(Lexer::NumValString);
+	
+				Lexer::GetNextToken();
+	
+				if(Lexer::CurrentToken != ']')
+					return LogError("Expected ']' to close array size. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			}
+			else
+				dyn = true;
+
 			Lexer::GetNextToken();
 
-			return std::make_unique<AST::Array>(std::move(ty), arraySize);
+			auto arr = std::make_unique<AST::Array>(std::move(ty), arraySize);
+			arr->dynamicInitialization = dyn;
+
+			//std::cout << "Array " << currentIdentifierString << " parsed!\n";
+			localArrayNames.push_back(currentIdentifierString);
+
+			return arr;
 		}
 
 		return ty;
@@ -519,6 +591,8 @@ struct Parser
 
 	static std::unique_ptr<AST::Function> ParseDefinition()
 	{
+		localArrayNames.clear();
+
 		Lexer::GetNextToken();
 
 		auto Proto = ParsePrototype();
@@ -781,6 +855,8 @@ struct Parser
 		{
 			std::string Name = Lexer::IdentifierStr;
 
+			currentIdentifierString = Name;
+
 			Lexer::GetNextToken();
 
 			std::unique_ptr<AST::Expression> Type;
@@ -814,6 +890,10 @@ struct Parser
 						return LogError("ArrayInitContent is nullptr.");
 
 					Parser::lastArray->variables = std::move(getAIC->variables);
+
+					if(Parser::lastArray->dynamicInitialization)
+						Parser::lastArray->size = Parser::lastArray->variables.size();
+
 					Parser::lastArray = nullptr;
 				}
 			}

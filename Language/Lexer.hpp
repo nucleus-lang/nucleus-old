@@ -49,6 +49,9 @@ enum Token
 
   TK_True = -22,
   TK_False = -23,
+
+  TK_String = -24,
+  TK_StringContent = -25,
 };
 
 struct SourceLocation
@@ -62,6 +65,7 @@ struct Lexer
     static std::string IdentifierStr; // Filled in if TK_Identifier
     static std::string NumValString;  // Filled in if TK_Number
     static char CharVal;              // Filled in if TK_Char
+    static std::string StringString;  // Filled in if TK_String
 
     static SourceLocation CurrentLocation;
     static SourceLocation LexerLocation;
@@ -137,6 +141,8 @@ struct Lexer
 
         if(IdentifierStr == "char")
           return Token::TK_Char;
+        if(IdentifierStr == "string")
+          return Token::TK_String;
 
         if(IdentifierStr == "bool")
           return Token::TK_Bool;
@@ -159,6 +165,22 @@ struct Lexer
       {
         LastChar = Advance();
         return Token::TK_Comma;
+      }
+
+      if(LastChar == '\"')
+      {
+        StringString = "";
+        LastChar = Advance();
+
+        while (LastChar != '\"')
+        {
+          StringString += LastChar;
+          LastChar = Advance();
+        }
+
+        LastChar = Advance();
+
+        return Token::TK_StringContent;
       }
 
       if(LastChar == '\'')

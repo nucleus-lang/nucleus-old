@@ -1,19 +1,12 @@
-extern printchar(x: char) -> char;
+extern print(content: string) -> int;
 
-func binary : 1 (x: char, y: char) -> char
+func binary : 1 (x: int, y: int) -> int
 {
 	y;
 }
 
 func main() -> int
 {
-	var getInteger: int = 0;
-	var simpleArray: char[6] = ['H', 'e', 'l', 'l', 'o', '!'];
-
-	for(i: int = 0; i < 6)
-	{
-		printchar(simpleArray[i]);
-	}
-
+	print("Hello World!") :
 	0;
 }
