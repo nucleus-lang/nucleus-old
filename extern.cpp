@@ -27,3 +27,15 @@ extern "C" DLLEXPORT char printchar(char X)
   std::cout << X;
   return X;
 }
+
+extern "C" DLLEXPORT int print(const char* X)
+{
+  printf(X);
+  return 0;
+}
+
+extern "C" DLLEXPORT int printi(int X)
+{
+  printf("%i", X);
+  return 0;
+}

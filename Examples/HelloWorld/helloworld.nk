@@ -1,0 +1,12 @@
+extern print(content: string) -> int;
+
+func binary : 1 (x: int, y: int) -> int
+{
+	y;
+}
+
+func main() -> int
+{
+	print("Hello World!") :
+	0;
+}

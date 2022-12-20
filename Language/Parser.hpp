@@ -273,6 +273,11 @@ struct Parser
 			variables.push_back(std::move(Result));
 		}
 
+		auto EndString = std::make_unique<AST::Number>(std::to_string((int)'\0'));
+		EndString->bit = 8;
+
+		variables.push_back(std::move(EndString));
+
 		Lexer::GetNextToken();
 
 		return std::make_unique<AST::ArrayInitContent>(std::move(variables));
@@ -435,7 +440,8 @@ struct Parser
 			return LogErrorP("Expected '(' in function prototype");
 
 		Lexer::GetNextToken();
-		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType())
+		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType()
+			|| Lexer::CurrentToken == '[' || Lexer::CurrentToken == ']')
 		{
 			Lexer::GetNextToken();
 
@@ -456,7 +462,7 @@ struct Parser
 
 			ArgumentNames.push_back(std::make_pair(std::move(Expr), std::move(VarName)));
 
-			if(Lexer::CurrentToken != Token::TK_Comma && Lexer::CurrentToken != ')')
+			if(Lexer::CurrentToken != Token::TK_Comma && Lexer::CurrentToken != ')' && Lexer::CurrentToken != '[')
 				return LogErrorP("Expected ',' in function prototype. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 			else
 			{
@@ -549,7 +555,7 @@ struct Parser
 		}
 		else if(Lexer::CurrentToken == Token::TK_String)
 		{
-			return ParseString();
+			ty = ParseString();
 		}
 
 		if(Lexer::CurrentToken == '[')
