@@ -87,26 +87,37 @@ void CodeGeneration::Initialize()
 
  	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
-#if 0
+#if 1
+
+ 	llvm::PassManagerBuilder Builder;
+
+ 	Builder.OptLevel = 3;
+ 	Builder.SizeLevel = 1;
+
+ 	Builder.Inliner = llvm::createFunctionInliningPass(Builder.OptLevel, Builder.SizeLevel, false);
+
+ 	//TheModule->adjustPassManager(Builder);
+
+ 	Builder.populateFunctionPassManager(*TheFPM);
 
  	// ==========================
  	// ENABLE BASIC OPTIMIZATIONS
  	// ==========================
 
  	// Promote allocations to registers.
- 	TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
+ 	// TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
 
  	// Do simple optimizations and bit-twiddling.
- 	TheFPM->add(llvm::createInstructionCombiningPass());
+ 	// TheFPM->add(llvm::createInstructionCombiningPass());
 
  	// Reassociate the expressions.
- 	TheFPM->add(llvm::createReassociatePass());
+ 	// TheFPM->add(llvm::createReassociatePass());
 
  	// Delete Common SubExpressions.
- 	TheFPM->add(llvm::createGVNPass());
+ 	// TheFPM->add(llvm::createGVNPass());
 
  	// Simplify the control flow graph (deleting unreacable blocks, etc.)
- 	TheFPM->add(llvm::createCFGSimplificationPass());
+ 	// TheFPM->add(llvm::createCFGSimplificationPass());
 
 #endif
 

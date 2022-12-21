@@ -11,6 +11,7 @@ struct Parser
 	static std::vector<std::string> localArrayNames;
 	static std::string currentIdentifierString;
 	static unsigned int bracketCount;
+	static bool dotCommaAsOperator;
 
 	static std::unique_ptr<AST::Expression> LogError(std::string str)
 	{
@@ -166,15 +167,6 @@ struct Parser
 		return std::make_unique<AST::Call>(LitLoc, idName, std::move(Arguments));
 	}
 
-	static std::unique_ptr<AST::Expression> ParseDotComma()
-	{
-		// Do nothing for now...
-
-		Lexer::GetNextToken();
-
-		return ParseUnary();
-	}
-
 	static std::unique_ptr<AST::Expression> ParseArrayInit()
 	{
 		//std::cout << "Parsing Array Init Content...\n";
@@ -226,8 +218,6 @@ struct Parser
 			case Token::TK_False:
 				return ParseFalse();	
 
-			case Token::TK_DotComma:
-				return ParseDotComma();
 			case '(':
 				return ParseParenthesis();
 			case Token::TK_If:
@@ -317,12 +307,15 @@ struct Parser
 		{
 			int TokenPrecedence = GetTokenPrecedence();
 
-			if(TokenPrecedence < ExpressionPrecedence)
+			if(TokenPrecedence < ExpressionPrecedence || Lexer::CurrentToken == '}')
 				return LHS;
 
 			int BinaryOperator = Lexer::CurrentToken;
 			SourceLocation BinLoc = Lexer::CurrentLocation;
 			Lexer::GetNextToken();
+
+			if(Lexer::CurrentToken == '}')
+				return LHS;
 
 			auto RHS = ParseUnary();
 			if(!RHS)
@@ -345,6 +338,9 @@ struct Parser
 
 	static int GetTokenPrecedence()
 	{
+		if(Lexer::CurrentToken == Token::TK_DotComma && dotCommaAsOperator)
+			Lexer::CurrentToken = ';';
+
 		if(!isascii(Lexer::CurrentToken))
 			return -1;
 
@@ -704,10 +700,8 @@ struct Parser
 
 		if(openedBlock)
 		{
-			Lexer::GetNextToken();
-
 			if(Lexer::CurrentToken != '}')
-				return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+				return LogError("Expected '}' at end of if block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 			else
 				openedBlock = false;
 		}
@@ -737,9 +731,7 @@ struct Parser
 			return nullptr;
 
 		if(openedBlock)
-		{
-			Lexer::GetNextToken();
-			
+		{	
 			if(Lexer::CurrentToken != '}')
 				return LogError("Expected '}' at end of else block. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 		}
@@ -778,15 +770,21 @@ struct Parser
 
 		Lexer::GetNextToken();
 
+		dotCommaAsOperator = false;
+
+		//std::cout << "In Start...\n";
+
 		auto Start = ParseExpression();
 
 		if(!Start)
 			return nullptr;
 
 		if(Lexer::CurrentToken != TK_DotComma)
-			return LogError("Expected ';' after start of for loop.");
+			return LogError("Expected ';' after start of for loop. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		Lexer::GetNextToken();
+
+		//std::cout << "In End...\n";
 
 		auto End = ParseExpression();
 		if(!End)
@@ -795,6 +793,8 @@ struct Parser
 		std::unique_ptr<AST::Expression> Step;
 		if(Lexer::CurrentToken == TK_DotComma)
 		{
+			//std::cout << "In Step...\n";
+
 			Lexer::GetNextToken();
 			Step = ParseExpression();
 			if(!Step)
@@ -803,6 +803,8 @@ struct Parser
 
 		if(Lexer::CurrentToken != ')')
 			return LogError("Expected ')' to close for loop args.");
+
+		dotCommaAsOperator = true;
 
 		Lexer::GetNextToken();
 
@@ -813,9 +815,13 @@ struct Parser
 
 		Lexer::GetNextToken();
 
+		//std::cout << "In Body...\n";
+
 		auto Body = ParseExpression();
 		if(!Body)
 			return nullptr;
+
+		//std::cout << "In End of Loop...\n";
 
 		Lexer::GetNextToken();
 
@@ -825,8 +831,6 @@ struct Parser
 		bracketCount--;
 
 		std::unique_ptr<AST::Expression> Next = nullptr;
-
-		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '}')
 			Next = ParseExpression();

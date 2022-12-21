@@ -14,6 +14,7 @@ AST::Array* Parser::lastArray = nullptr;
 unsigned int Parser::bracketCount = 0;
 std::vector<std::string> Parser::localArrayNames;
 std::string Parser::currentIdentifierString;
+bool Parser::dotCommaAsOperator = true;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};
@@ -72,6 +73,7 @@ int main()
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
 
+  Parser::BinaryOpPrecedence[';'] = 1;
   Parser::BinaryOpPrecedence['='] = 2;
 	Parser::BinaryOpPrecedence['<'] = 10;
 	Parser::BinaryOpPrecedence['+'] = 20;

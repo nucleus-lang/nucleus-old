@@ -27,6 +27,10 @@
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/IR/DIBuilder.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/IPO/AlwaysInliner.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "JITCompiler.hpp"
 #include <map>
 

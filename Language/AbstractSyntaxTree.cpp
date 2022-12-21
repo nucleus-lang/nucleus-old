@@ -167,7 +167,11 @@ llvm::Value* AST::Binary::codegen()
 		return nullptr;
 	}
 
-	if(op == '+')
+	if(op == Token::TK_DotComma || op == ';')
+	{
+		return R;
+	}
+	else if(op == '+')
 	{
 		if(pureIntCount == 2)
 		{

@@ -1,12 +1,12 @@
 extern print(content: string) -> int;
+extern printi(x: int) -> int;
 
-func binary : 1 (x: int, y: int) -> int
-{
-	y;
-}
+extern printd(x: double) -> double;
 
 func main() -> int
 {
-	print("Hello World!") :
-	0;
+	for(i: int = 0; i < 1000; 1)
+	{
+		printi(i);
+	}
 }
