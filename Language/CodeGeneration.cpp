@@ -98,26 +98,34 @@ void CodeGeneration::Initialize()
 
  	//TheModule->adjustPassManager(Builder);
 
- 	Builder.populateFunctionPassManager(*TheFPM);
+ 	//TheFPM->add(llvm::createStripDeadDebugInfoPass());
 
  	// ==========================
  	// ENABLE BASIC OPTIMIZATIONS
  	// ==========================
 
- 	// Promote allocations to registers.
- 	// TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
+ 	//TheFPM->add(llvm::createConstantPropagationPass());
 
- 	// Do simple optimizations and bit-twiddling.
- 	// TheFPM->add(llvm::createInstructionCombiningPass());
+ 	for(int i = 0; i < 3; i++)
+ 	{
+ 		Builder.populateFunctionPassManager(*TheFPM);
 
- 	// Reassociate the expressions.
- 	// TheFPM->add(llvm::createReassociatePass());
+ 		TheFPM->add(llvm::createIndVarSimplifyPass());
+		TheFPM->add(llvm::createDeadCodeEliminationPass());
+		TheFPM->add(llvm::createLoopSimplifyPass());
 
- 	// Delete Common SubExpressions.
- 	// TheFPM->add(llvm::createGVNPass());
+		// Do simple optimizations and bit-twiddling.
+ 		TheFPM->add(llvm::createInstructionCombiningPass());
 
- 	// Simplify the control flow graph (deleting unreacable blocks, etc.)
- 	// TheFPM->add(llvm::createCFGSimplificationPass());
+ 		// Reassociate the expressions.
+ 		//TheFPM->add(llvm::createReassociatePass());
+
+ 		// Delete Common SubExpressions.
+ 		TheFPM->add(llvm::createGVNPass());
+
+ 		// Simplify the control flow graph (deleting unreacable blocks, etc.)
+ 		TheFPM->add(llvm::createCFGSimplificationPass());
+ 	}
 
 #endif
 

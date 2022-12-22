@@ -34,7 +34,7 @@ extern "C" DLLEXPORT int print(const char* X)
   return 0;
 }
 
-extern "C" DLLEXPORT int printi(int X)
+extern "C" DLLEXPORT int printi(unsigned int X)
 {
   printf("%i", X);
   return 0;
