@@ -175,7 +175,7 @@ llvm::Value* AST::Binary::codegen()
 	{
 		if(pureIntCount == 2)
 		{
-			opLLVM = CodeGeneration::Builder->CreateAdd(L, R, "addtmp");
+			opLLVM = CodeGeneration::Builder->CreateNUWAdd(L, R, "addtmp");
 		}
 		else
 		{
@@ -186,7 +186,7 @@ llvm::Value* AST::Binary::codegen()
 	{
 		if(pureIntCount == 2)
 		{
-			opLLVM = CodeGeneration::Builder->CreateSub(L, R, "subtmp");
+			opLLVM = CodeGeneration::Builder->CreateNUWSub(L, R, "subtmp");
 		}
 		else
 		{
@@ -197,7 +197,7 @@ llvm::Value* AST::Binary::codegen()
 	{
 		if(pureIntCount == 2)
 		{
-			opLLVM = CodeGeneration::Builder->CreateMul(L, R, "multmp");
+			opLLVM = CodeGeneration::Builder->CreateNUWMul(L, R, "multmp");
 		}
 		else
 		{
@@ -589,7 +589,7 @@ llvm::Value* AST::For::codegen()
 		if(dynamic_cast<Double*>(varType.get()) != nullptr || dynamic_cast<Float*>(varType.get()) != nullptr)
 			NextVar = CodeGeneration::Builder->CreateFAdd(CurVar, StepVal, "nextvar");		
 		else if(dynamic_cast<Integer*>(varType.get()) != nullptr)
-			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
+			NextVar = CodeGeneration::Builder->CreateNUWAdd(CurVar, StepVal, "nextvar");
 		else
 			return CodeGeneration::LogErrorV("Unknown function type.");
 	}
@@ -609,7 +609,7 @@ llvm::Value* AST::For::codegen()
 			Integer* getI = (Integer*)varType.get();
 
 			StepVal = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getI->bit, 1, false));
-			NextVar = CodeGeneration::Builder->CreateAdd(CurVar, StepVal, "nextvar");
+			NextVar = CodeGeneration::Builder->CreateNUWAdd(CurVar, StepVal, "nextvar");
 		}
 		else
 			return CodeGeneration::LogErrorV("Unknown function type.");

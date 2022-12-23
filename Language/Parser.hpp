@@ -823,7 +823,7 @@ struct Parser
 
 		//std::cout << "In End of Loop...\n";
 
-		Lexer::GetNextToken();
+		//Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '}')
 			return LogError("Expected '}' at end of for loop. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
@@ -831,6 +831,8 @@ struct Parser
 		bracketCount--;
 
 		std::unique_ptr<AST::Expression> Next = nullptr;
+
+		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != '}')
 			Next = ParseExpression();
@@ -857,6 +859,8 @@ struct Parser
 		Lexer::GetNextToken();
 
 		std::vector<AST::VarStruct> VarNames;
+
+		dotCommaAsOperator = false;
 
 		if(Lexer::CurrentToken != Token::TK_Identifier)
 			return LogError("Expected identifier after var.");
@@ -925,6 +929,10 @@ struct Parser
 
 		if(Lexer::CurrentToken != Token::TK_DotComma)
 			return LogError("Expected ';' after 'var'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		dotCommaAsOperator = true;
+
+		Lexer::GetNextToken();
 
 		auto Body = ParseExpression();
 		if(!Body)

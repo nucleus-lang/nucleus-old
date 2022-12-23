@@ -1,6 +1,8 @@
 #ifndef CODE_GEN_H
 #define CODE_GEN_H
 
+// RELEASE THE KRAKEN.
+
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/STLExtras.h"
@@ -25,6 +27,16 @@
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Transforms/Vectorize.h"
+
+#include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/RegionPass.h"
+#include "llvm/Analysis/RegionPrinter.h"
+#include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/CodeGen/Passes.h"
+
 #include "llvm/Transforms/Utils.h"
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/ADT/SmallVector.h"
