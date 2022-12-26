@@ -87,7 +87,7 @@ llvm::Value* AST::Variable::codegen()
 
 	//if(static_cast<llvm::ArrayType*>(V->getAllocatedType()) != nullptr)
 	//{
-	//	std::cout << "Is Array!\n";
+	//	//std::cout << "Is Array!\n";
 	//	std::string idx = name + "ptr";
 //
 	//	llvm::Value *i32zero = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, false));
@@ -110,6 +110,20 @@ llvm::Value* AST::Variable::codegen()
 			return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
 		else if(isArrayPointer)
 			return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+	}
+	else if(isTDArrayElement || isTDArrayPointer)
+	{
+		std::cout << "Generating Two-Dimensional Array Element or Pointer CodeGen...\n";
+
+		llvm::Value* index = TDArrayIndex->codegen();
+
+		llvm::Type* vType = V->getAllocatedType();
+
+		llvm::Value* indexList[2] = {llvm::ConstantInt::get(index->getType(), 0), index};
+
+		std::string idx = name + "idx";
+
+		return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str());
 	}
 
 	if(isInt)
@@ -309,9 +323,9 @@ llvm::Function* AST::FunctionPrototype::codegen()
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
 		else if(dynamic_cast<Array*>(i.first.get()) != nullptr)
-		{
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
-		}
+		else if(dynamic_cast<NestedArray*>(i.first.get()) != nullptr)
+			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else
 			return CodeGeneration::LogErrorFLLVM("One of the argument types is unknown.");
 	}
@@ -734,6 +748,14 @@ llvm::Value* AST::Var::codegen()
 					InitVal = getA->codegen();
 				}
 			}
+			else if(dynamic_cast<NestedArrayContent*>(Init) != nullptr)
+			{
+				if(dynamic_cast<NestedArray*>(VarNames[i].type.get()))
+				{
+					NestedArray* getA = (NestedArray*)VarNames[i].type.get();
+					InitVal = getA->codegen();
+				}
+			}
 			else
 			{
 				InitVal = Init->codegen();
@@ -762,16 +784,25 @@ llvm::Value* AST::Var::codegen()
 
 				InitVal = getA->codegen();
 			}
+			else if(dynamic_cast<NestedArray*>(VarNames[i].type.get()))
+			{
+				NestedArray* getNA = (NestedArray*)VarNames[i].type.get();
+
+				InitVal = getNA->codegen();
+			}
 		}
 
 		llvm::AllocaInst* Alloca = nullptr;
 
 		if(dynamic_cast<Array*>(VarNames[i].type.get()))
 			Alloca = CodeGeneration::Builder->CreateAlloca(InitVal->getType(), 0, VarName.c_str());
+		else if(dynamic_cast<NestedArray*>(VarNames[i].type.get()))
+			Alloca = (llvm::AllocaInst*)InitVal;
 		else
 			Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
 
-		CodeGeneration::Builder->CreateStore(InitVal, Alloca);
+		if(dynamic_cast<NestedArray*>(VarNames[i].type.get()) == nullptr)
+			CodeGeneration::Builder->CreateStore(InitVal, Alloca);
 
 		OldBindings.push_back(CodeGeneration::NamedValues[VarName]);
 
@@ -905,6 +936,59 @@ llvm::Value* AST::ArrayInitContent::codegen()
 	CodeGeneration::Builder->CreateStore(arr, V);
 
 	return CodeGeneration::Builder->CreateInBoundsGEP(V->getAllocatedType(), V, llvm::ArrayRef<llvm::Value*>(indexList, 2), "arrayinit");
+}
+
+llvm::Value* AST::NestedArray::codegen()
+{
+	//std::cout << "CodeGen NestedArray...\n";
+
+	std::vector<llvm::Constant*> values;
+
+	if(arrays.size() == 0)
+		return CodeGeneration::LogErrorV("Array size is 0.");
+
+	for(unsigned int i = 0; i < arrays.size(); i++)
+	{
+		llvm::Constant* getV = (llvm::Constant*)arrays[i]->codegen();
+
+		values.push_back(getV);
+	}
+
+	llvm::Value* arrV = llvm::ConstantArray::get(
+		llvm::ArrayType::get(llvm::PointerType::getUnqual(*CodeGeneration::TheContext), arrays.size()), 
+		values);
+
+	llvm::AllocaInst* Alloca = CodeGeneration::Builder->CreateAlloca(arrV->getType(), 0, "TDArrayAlloca");
+
+	for(unsigned int i = 0; i < arrays.size(); i++)
+	{
+		auto Ind = std::make_unique<Number>(std::to_string(i).c_str());
+		Ind->bit = 32;
+
+		llvm::Value* index = Ind->codegen();
+
+		llvm::Value* indexList[2] = {llvm::ConstantInt::get(index->getType(), 0), index};
+
+		//std::cout << "Creating Pointer...\n";
+
+		llvm::Value* getPtr = CodeGeneration::Builder->CreateInBoundsGEP(
+			Alloca->getAllocatedType(), Alloca, llvm::ArrayRef<llvm::Value*>(indexList, 2), "TDArrayPtr");
+
+		//std::cout << "Creating Load...\n";
+
+		llvm::Value* getLoad = CodeGeneration::Builder->CreateLoad(values[i]->getType(), values[i]);
+
+		//std::cout << "Creating Store...\n";
+
+		CodeGeneration::Builder->CreateStore(getLoad, getPtr);
+	}
+	
+	return Alloca;
+}
+
+llvm::Value* AST::NestedArrayContent::codegen()
+{
+	return CodeGeneration::LogErrorV("TODO: Implement Two-Dimensional Array Content Codegen!");
 }
 
 void AST::EmitLocation(AST::Expression* a)

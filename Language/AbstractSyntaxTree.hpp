@@ -114,8 +114,13 @@ struct AST
 	struct Variable : public Expression
 	{
 		std::string name;
+
 		bool isArrayElement = false;
 		bool isArrayPointer = false;
+		bool isTDArrayElement = false;
+		bool isTDArrayPointer = false;
+
+		std::unique_ptr<Expression> TDArrayIndex;
 		std::unique_ptr<Expression> arrayIndex;
 
 		Variable(SourceLocation Loc, const std::string& n) : Expression(Loc), name(n) {}
@@ -363,6 +368,52 @@ struct AST
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
 		{
 			Expression::Dump(out << "arraycontent", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
+	};
+
+	struct NestedArray : public Expression
+	{
+		std::vector<std::unique_ptr<Expression>> arrays;
+		std::unique_ptr<Expression> type;
+		bool dynamicInitialization = false;
+		unsigned int size = 0;
+
+		NestedArray(std::unique_ptr<Expression> t, unsigned int s) : type(std::move(t)), size(s) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			Expression::Dump(out << "nestedarray", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
+	};
+
+	struct NestedArrayContent : public Expression
+	{
+		std::vector<std::unique_ptr<Expression>> variables;
+
+		NestedArrayContent(std::vector<std::unique_ptr<Expression>> v) :
+		variables(std::move(v)) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			Expression::Dump(out << "nestedarraycontent", index);
 
 			//for(const auto& NamedVar : variables)
 			//{

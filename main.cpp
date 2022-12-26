@@ -11,10 +11,11 @@ std::string Lexer::StringString;
 
 std::map<char, int> Parser::BinaryOpPrecedence;
 AST::Array* Parser::lastArray = nullptr;
+AST::NestedArray* Parser::lastNestedArray = nullptr;
 unsigned int Parser::bracketCount = 0;
-std::vector<std::string> Parser::localArrayNames;
+std::vector<std::string> Parser::localArrayNames, Parser::localNestedArrayNames;
 std::string Parser::currentIdentifierString;
-bool Parser::dotCommaAsOperator = true;
+bool Parser::dotCommaAsOperator = true, Parser::beginNestedArray = false, Parser::endNestedArray = true;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};

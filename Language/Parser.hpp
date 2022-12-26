@@ -8,10 +8,18 @@
 struct Parser
 {
 	static AST::Array* lastArray;
-	static std::vector<std::string> localArrayNames;
+	static AST::NestedArray* lastNestedArray;
+	static std::vector<std::string> localArrayNames, localNestedArrayNames;
 	static std::string currentIdentifierString;
 	static unsigned int bracketCount;
-	static bool dotCommaAsOperator;
+	static bool dotCommaAsOperator, beginNestedArray, endNestedArray;
+
+	template<typename TO, typename FROM>
+	static std::unique_ptr<TO> static_unique_pointer_cast (std::unique_ptr<FROM>&& old)
+	{
+    	return std::unique_ptr<TO>{static_cast<TO*>(old.release())};
+    	// conversion: unique_ptr<FROM>->FROM*->TO*->unique_ptr<TO>
+	}
 
 	static std::unique_ptr<AST::Expression> LogError(std::string str)
 	{
@@ -94,25 +102,40 @@ struct Parser
 	{
 		std::string idName = Lexer::IdentifierStr;
 
+		//std::cout << "Identifier Str: " << idName << "\n";
+
 		SourceLocation LitLoc = Lexer::CurrentLocation;
 
 		Lexer::GetNextToken();
 
-		for(auto i : localArrayNames)
+		if(Lexer::CurrentToken == '<')
 		{
-			if(i == idName)
+			std::unique_ptr<AST::Expression> Ind = nullptr;
+
+			if(Lexer::CurrentToken == '<')
 			{
-				std::unique_ptr<AST::Variable> arrayPointer = std::make_unique<AST::Variable>(LitLoc, idName);
+				std::unique_ptr<AST::Variable> nestedArray = std::make_unique<AST::Variable>(LitLoc, idName);
+				nestedArray->isTDArrayElement = true;
 
-				auto Ind = std::make_unique<AST::Number>("0");
+				//std::cout << "Parsing Nested Array Index...\n";
 
-				arrayPointer->arrayIndex = std::move(Ind);
-				arrayPointer->isArrayPointer = true;
+				Lexer::GetNextToken();
 
-				return arrayPointer;
+				Ind = ParseExpression();
+
+				if(!Ind)
+					return nullptr;
+
+				nestedArray->TDArrayIndex = std::move(Ind);
+
+				if(Lexer::CurrentToken != '>')
+					return LogError("Expected '>' to close two-dimensional array item. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+				Lexer::GetNextToken();
+
+				return nestedArray;
 			}
 		}
-
 		if(Lexer::CurrentToken == '[')
 		{
 			std::unique_ptr<AST::Variable> arrayElement = std::make_unique<AST::Variable>(LitLoc, idName);
@@ -138,7 +161,43 @@ struct Parser
 			return arrayElement;
 		}
 		else if(Lexer::CurrentToken != '(')
+		{
+			for(auto i : localArrayNames)
+			{
+				if(i == idName)
+				{
+					std::unique_ptr<AST::Variable> arrayPointer = std::make_unique<AST::Variable>(LitLoc, idName);
+
+					auto Ind = std::make_unique<AST::Number>("0");
+
+					arrayPointer->arrayIndex = std::move(Ind);
+					arrayPointer->isArrayPointer = true;
+
+					return arrayPointer;
+				}
+			}
+
+			for(auto i : localNestedArrayNames)
+			{
+				if(i == idName)
+				{
+					std::unique_ptr<AST::Variable> nestedArray = std::make_unique<AST::Variable>(LitLoc, idName);
+
+					auto Ind = std::make_unique<AST::Number>("0");
+
+					nestedArray->TDArrayIndex = std::move(Ind);
+					nestedArray->isTDArrayPointer = true;
+
+					return nestedArray;
+				}
+			}
+
+			//std::cout << idName << " not found in localNestedArrayNames.\n";
+
 			return std::make_unique<AST::Variable>(LitLoc, idName);
+		}
+
+		//std::cout << idName << "'(' found!\n";
 
 		Lexer::GetNextToken();
 		std::vector<std::unique_ptr<AST::Expression>> Arguments;
@@ -232,7 +291,55 @@ struct Parser
 
 			case Token::TK_StringContent:
 				return ParseStringContent();
+
+			case '<':
+				return ParseNestedArrayInit();
 		}
+	}
+
+	static std::unique_ptr<AST::Expression> ParseNestedArrayInit()
+	{
+		//std::cout << "Parsing Nested Array...\n";
+
+		std::vector<std::unique_ptr<AST::Expression>> arrays;
+
+		beginNestedArray = false;
+
+		Lexer::GetNextToken();
+
+		while(1)
+		{
+			//std::cout << "Got an array!\n";
+			auto arr = ParseExpression();
+
+			if(dynamic_cast<AST::ArrayInitContent*>(arr.get()) == nullptr && dynamic_cast<AST::Array*>(arr.get()) == nullptr)
+				return LogError("Initializer from two-dimensional array is not an array. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+			arrays.push_back(std::move(arr));
+
+			if(Lexer::CurrentToken != Token::TK_Comma)
+			{
+				if(Lexer::CurrentToken == '>')
+				{
+					endNestedArray = true;
+					break;
+				}
+				else
+				{
+					return LogError("Expected ',' or '>' inside two-dimensional array initialization. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+				}
+			}
+
+			Lexer::GetNextToken();
+		}
+
+		endNestedArray = true;
+
+		Lexer::GetNextToken();
+
+		endNestedArray = false;
+
+		return std::make_unique<AST::NestedArrayContent>(std::move(arrays));
 	}
 
 	static std::unique_ptr<AST::Expression> ParseString()
@@ -437,7 +544,7 @@ struct Parser
 
 		Lexer::GetNextToken();
 		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType()
-			|| Lexer::CurrentToken == '[' || Lexer::CurrentToken == ']')
+			|| Lexer::CurrentToken == '[' || Lexer::CurrentToken == ']' || Lexer::CurrentToken == '<')
 		{
 			Lexer::GetNextToken();
 
@@ -458,7 +565,7 @@ struct Parser
 
 			ArgumentNames.push_back(std::make_pair(std::move(Expr), std::move(VarName)));
 
-			if(Lexer::CurrentToken != Token::TK_Comma && Lexer::CurrentToken != ')' && Lexer::CurrentToken != '[')
+			if(Lexer::CurrentToken != Token::TK_Comma && Lexer::CurrentToken != ')' && Lexer::CurrentToken != '[' && Lexer::CurrentToken == '<')
 				return LogErrorP("Expected ',' in function prototype. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 			else
 			{
@@ -499,7 +606,64 @@ struct Parser
 	{
 		std::unique_ptr<AST::Expression> ty = nullptr;
 
-		if(Lexer::CurrentToken == Token::TK_Integer)
+		if(Lexer::CurrentToken == '<')
+		{
+			unsigned int nestedArraySize = 0;
+
+			Lexer::GetNextToken();
+
+			bool dyn = false;
+
+			ty = ParseFunctionType();
+
+			if(static_cast<AST::Array*>(ty.get()) == nullptr)
+				return LogError("Type must've be array for two-dimensional setup. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+			if(Lexer::CurrentToken != '>')
+			{
+				if(Lexer::CurrentToken == '(')
+				{
+					Lexer::GetNextToken();
+
+					if(Lexer::CurrentToken == Token::TK_Number)
+					{
+						if(Lexer::NumValString.find(".") != std::string::npos || Lexer::NumValString.find("f") != std::string::npos)
+							nestedArraySize = 0;
+						else
+							nestedArraySize = std::stoi(Lexer::NumValString);
+		
+						Lexer::GetNextToken();
+					}
+					else
+						return LogError("Expected integer to set two-dimensional array size. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+					if(Lexer::CurrentToken != ')')
+						return LogError("Expected ')' to close two-dimensional array size. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+					Lexer::GetNextToken();
+				}
+				else
+					return LogError("Expected '(' to open two-dimensional array size. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+				if(Lexer::CurrentToken != '>')
+					return LogError("Expected '>' to close two-dimensional array. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			}
+			else
+			{
+				dyn = true;
+			}
+
+			Lexer::GetNextToken();
+
+			auto arr = std::make_unique<AST::NestedArray>(std::move(ty), nestedArraySize);
+			arr->dynamicInitialization = dyn;
+
+			//std::cout << "Nested Array " << currentIdentifierString << " parsed!\n";
+			localNestedArrayNames.push_back(currentIdentifierString);
+
+			return arr;
+		}
+		else if(Lexer::CurrentToken == Token::TK_Integer)
 		{
 			auto i = std::make_unique<AST::Integer>(0);
 
@@ -842,7 +1006,7 @@ struct Parser
 
 	static std::unique_ptr<AST::Expression> ParseUnary()
 	{
-		if(!isascii(Lexer::CurrentToken) || Lexer::CurrentToken == '(' || Lexer::CurrentToken == ',' || Lexer::CurrentToken == '[')
+		if(!isascii(Lexer::CurrentToken) || Lexer::CurrentToken == '(' || Lexer::CurrentToken == ',' || Lexer::CurrentToken == '[' || Lexer::CurrentToken == '<')
 			return ParsePrimary();
 
 		int Opc = Lexer::CurrentToken;
@@ -885,6 +1049,12 @@ struct Parser
 			if(dynamic_cast<AST::Array*>(Type.get()) != nullptr)
 				Parser::lastArray = (AST::Array*)Type.get();
 
+			if(dynamic_cast<AST::NestedArray*>(Type.get()) != nullptr)
+			{
+				Parser::lastNestedArray = (AST::NestedArray*)Type.get();
+				beginNestedArray = true;
+			}
+
 			std::unique_ptr<AST::Expression> Init;
 			if(Lexer::CurrentToken == '=')
 			{
@@ -909,6 +1079,23 @@ struct Parser
 						Parser::lastArray->size = Parser::lastArray->variables.size();
 
 					Parser::lastArray = nullptr;
+				}
+				else if(dynamic_cast<AST::NestedArrayContent*>(Init.get()) != nullptr)
+				{
+					if(Parser::lastNestedArray == nullptr)
+						return LogError("Unexpected nested array initialization.");
+
+					AST::NestedArrayContent* getNAC = (AST::NestedArrayContent*)Init.get();
+
+					if(getNAC == nullptr)
+						return LogError("NestedArrayContent is nullptr.");
+
+					Parser::lastNestedArray->arrays = std::move(getNAC->variables);
+
+					if(Parser::lastNestedArray->dynamicInitialization)
+						Parser::lastNestedArray->size = Parser::lastNestedArray->arrays.size();
+
+					Parser::lastNestedArray = nullptr;
 				}
 			}
 

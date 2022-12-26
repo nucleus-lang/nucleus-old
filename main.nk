@@ -3,15 +3,10 @@ extern printi(x: int) -> int;
 
 extern printd(x: double) -> double;
 
-func main(argc: int) -> int
+func main(argc: int, argv: <string>) -> int
 {
-	var getFinalInt: int = 0;
+	
+	print(argv<0>);
 
-	for(i: int = 0; i < 1000000000; 1) 
-	{ 
-		getFinalInt = i;
-	}
-
-	printi(getFinalInt);
-	1;
+	0;
 }
