@@ -87,7 +87,7 @@ void CodeGeneration::Initialize()
 
  	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
-#if 0
+#if 1
 
  	llvm::PassManagerBuilder Builder;
 

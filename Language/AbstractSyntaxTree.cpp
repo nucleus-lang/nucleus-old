@@ -574,9 +574,18 @@ llvm::Value* AST::If::codegen()
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	CodeGeneration::Builder->SetInsertPoint(ElseBB);
 
-	llvm::Value* ElseV = Else->codegen();
-	if(!ElseV)
-		return nullptr;
+	llvm::Value* ElseV = nullptr;
+
+	if(Else != nullptr)
+	{
+		ElseV = Else->codegen();
+		if(!ElseV)
+			return nullptr;
+	}
+	else
+	{
+		ElseV = llvm::ConstantInt::get(TheFunction->getFunctionType()->getReturnType(), 0);
+	}
 
 	CodeGeneration::Builder->CreateBr(MergeBB);
 

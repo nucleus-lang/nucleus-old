@@ -885,7 +885,7 @@ struct Parser
 		Lexer::GetNextToken();
 
 		if(Lexer::CurrentToken != Token::TK_Else)
-			return LogError("Expected 'else'. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+			return std::make_unique<AST::If>(IfLoc, std::move(Condition), std::move(Then), nullptr);
 
 		Lexer::GetNextToken();
 
