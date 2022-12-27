@@ -113,17 +113,43 @@ llvm::Value* AST::Variable::codegen()
 	}
 	else if(isTDArrayElement || isTDArrayPointer)
 	{
-		std::cout << "Generating Two-Dimensional Array Element or Pointer CodeGen...\n";
+		//std::cout << "Generating Two-Dimensional Array Element or Pointer CodeGen...\n";
 
 		llvm::Value* index = TDArrayIndex->codegen();
 
 		llvm::Type* vType = V->getAllocatedType();
 
+		//std::cout << "Print Output...\n";
+		//vType->print(llvm::outs(), false);
+		//std::cout << "\n";
+		//V->print(llvm::outs(), false);
+		//std::cout << "\n";
+
 		llvm::Value* indexList[2] = {llvm::ConstantInt::get(index->getType(), 0), index};
+
+		//indexList[0]->print(llvm::outs(), false);
+		//std::cout << "\n";
+		//indexList[1]->print(llvm::outs(), false);
+		//std::cout << "\n";
 
 		std::string idx = name + "idx";
 
-		return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str());
+		llvm::Value* finalV = nullptr;
+
+		if(vType->isPointerTy())
+		{
+			indexList[0] = index;
+			indexList[1] = nullptr;
+			finalV = CodeGeneration::Builder->CreateLoad(vType, CodeGeneration::Builder->CreateInBoundsGEP(vType, CodeGeneration::Builder->CreateLoad(vType, V, "loadptr"), llvm::ArrayRef<llvm::Value*>(indexList, 1), idx.c_str()), name.c_str());
+		}
+		else
+		{
+			finalV = CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str());
+		}
+
+		//std::cout << "Two-Dimensional Array Element or Pointer CodeGen Generated!\n";
+
+		return finalV;
 	}
 
 	if(isInt)
@@ -444,7 +470,12 @@ llvm::Function* AST::Function::codegen()
 
 	for(auto& A : TheFunction->args())
 	{
-		llvm::AllocaInst* Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, std::string(A.getName()));
+		llvm::AllocaInst* Alloca = nullptr;
+
+		//if(Alloca->getAllocatedType()->isPointerTy())
+			Alloca = CodeGeneration::Builder->CreateAlloca(A.getType(), 0, std::string(A.getName()).c_str());
+		//else
+		//	Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, std::string(A.getName()));
 
 		llvm::DILocalVariable* D = CodeGeneration::DBuilder->createParameterVariable(
 			SP, A.getName(), ArgIdx, Unit, LineNo, AST::GetFunctionDIType(P.arguments[ArgIdx].first.get()), true

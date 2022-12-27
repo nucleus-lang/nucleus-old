@@ -15,7 +15,7 @@ AST::NestedArray* Parser::lastNestedArray = nullptr;
 unsigned int Parser::bracketCount = 0;
 std::vector<std::string> Parser::localArrayNames, Parser::localNestedArrayNames;
 std::string Parser::currentIdentifierString;
-bool Parser::dotCommaAsOperator = true, Parser::beginNestedArray = false, Parser::endNestedArray = true;
+bool Parser::dotCommaAsOperator = true, Parser::beginNestedArray = false, Parser::endNestedArray = true, Parser::disableOperators = false;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};

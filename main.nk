@@ -5,8 +5,14 @@ extern printd(x: double) -> double;
 
 func main(argc: int, argv: <string>) -> int
 {
-	
-	print(argv<0>);
+	for(i: int = 0; i < argc - 1; 1)
+	{
+		print("Argument ");
+		printi(i);
+		print(": ");
+		print(argv<i>);
+		print(" | ");
+	}
 
 	0;
 }

@@ -12,7 +12,7 @@ struct Parser
 	static std::vector<std::string> localArrayNames, localNestedArrayNames;
 	static std::string currentIdentifierString;
 	static unsigned int bracketCount;
-	static bool dotCommaAsOperator, beginNestedArray, endNestedArray;
+	static bool dotCommaAsOperator, beginNestedArray, endNestedArray, disableOperators;
 
 	template<typename TO, typename FROM>
 	static std::unique_ptr<TO> static_unique_pointer_cast (std::unique_ptr<FROM>&& old)
@@ -110,30 +110,37 @@ struct Parser
 
 		if(Lexer::CurrentToken == '<')
 		{
-			std::unique_ptr<AST::Expression> Ind = nullptr;
-
-			if(Lexer::CurrentToken == '<')
+			for(auto i : localNestedArrayNames)
 			{
-				std::unique_ptr<AST::Variable> nestedArray = std::make_unique<AST::Variable>(LitLoc, idName);
-				nestedArray->isTDArrayElement = true;
-
-				//std::cout << "Parsing Nested Array Index...\n";
-
-				Lexer::GetNextToken();
-
-				Ind = ParseExpression();
-
-				if(!Ind)
-					return nullptr;
-
-				nestedArray->TDArrayIndex = std::move(Ind);
-
-				if(Lexer::CurrentToken != '>')
-					return LogError("Expected '>' to close two-dimensional array item. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
-
-				Lexer::GetNextToken();
-
-				return nestedArray;
+				if(i == idName)
+				{
+					std::unique_ptr<AST::Expression> Ind = nullptr;
+	
+					std::unique_ptr<AST::Variable> nestedArray = std::make_unique<AST::Variable>(LitLoc, idName);
+					nestedArray->isTDArrayElement = true;
+		
+					//std::cout << "Parsing Nested Array Index...\n";
+		
+					Lexer::GetNextToken();
+		
+					disableOperators = true;
+		
+					Ind = ParseExpression();
+		
+					if(!Ind)
+						return nullptr;
+		
+					nestedArray->TDArrayIndex = std::move(Ind);
+		
+					disableOperators = false;
+		
+					if(Lexer::CurrentToken != '>')
+						return LogError("Expected '>' to close two-dimensional array item. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+		
+					Lexer::GetNextToken();
+		
+					return nestedArray;
+				}
 			}
 		}
 		if(Lexer::CurrentToken == '[')
@@ -386,7 +393,10 @@ struct Parser
 		if(!LHS)
 			return nullptr;
 
-		return ParseBinaryOperatorRight(0, std::move(LHS));
+		if(!disableOperators)
+			return ParseBinaryOperatorRight(0, std::move(LHS));
+
+		return LHS;
 	}
 
 	static std::unique_ptr<AST::Expression> ParseBracket()
