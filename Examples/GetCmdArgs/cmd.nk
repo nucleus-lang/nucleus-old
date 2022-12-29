@@ -1,0 +1,20 @@
+extern print(content: string) -> int;
+extern printi(x: int) -> int;
+
+func main(argc: int, argv: <string>) -> int
+{
+	for(i: int = 0; i < argc - 1; 1)
+	{
+		print("Argument ");
+		printi(i);
+		print(": ");
+		print(argv<i>);
+
+		if(i < argc - 1) 
+			{ print(" | "); }
+		else
+			{ print(" "); }
+	}
+
+	0;
+}

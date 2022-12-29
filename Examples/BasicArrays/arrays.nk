@@ -1,0 +1,19 @@
+extern printchar(x: char) -> char;
+
+func binary : 1 (x: char, y: char) -> char
+{
+	y;
+}
+
+func main() -> int
+{
+	var getInteger: int = 0;
+	var simpleArray: char[6] = ['H', 'e', 'l', 'l', 'o', '!'];
+
+	for(i: int = 0; i < 6)
+	{
+		printchar(simpleArray[i]);
+	}
+
+	0;
+}

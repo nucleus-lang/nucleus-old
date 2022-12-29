@@ -1,0 +1,12 @@
+extern HelloFromCPP() -> double;
+extern HelloFromRust() -> double;
+
+func binary% 1(x: double, y: double) -> double
+{
+	y;
+}
+
+func main() -> double
+{
+	HelloFromCPP() % HelloFromRust();
+}

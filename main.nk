@@ -1,9 +1,20 @@
-use "STD";
+extern print(content: string) -> int;
+extern printi(x: int) -> int;
 
-var example: int = 10;
-
-func main() -> int
+func main(argc: int, argv: <string>) -> int
 {
-	STD.Print("Hello World!");
-	return 0;
+	for(i: int = 0; i < argc - 1; 1)
+	{
+		print("Argument ");
+		printi(i);
+		print(": ");
+		print(argv<i>);
+
+		if(i < argc - 1) 
+			{ print(" | "); }
+		else
+			{ print(" "); }
+	}
+
+	0;
 }
