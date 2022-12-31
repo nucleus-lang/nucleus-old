@@ -59,7 +59,7 @@ struct Parser
 	static std::unique_ptr<AST::Expression> ParseCharValue()
 	{
 		std::unique_ptr<AST::Number> Result = std::make_unique<AST::Number>(std::to_string((int)Lexer::CharVal));
-		Result->bit = 8;
+		Result->bit = 32;
 		Lexer::GetNextToken();
 		return std::move(Result);
 	}
