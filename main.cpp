@@ -41,6 +41,11 @@ void MainLoop()
 				ParseTesting::Extern();
 				Lexer::GetNextToken();
 				break;
+			case Token::TK_Struct:
+				//std::cout << "Looking for Extern...\n";
+				ParseTesting::Struct();
+				Lexer::GetNextToken();
+				break;
 			//default:
 			//	std::cout << "Looking for Top Level Expression...\n";
 			//	ParseTesting::TopLevelExpression();

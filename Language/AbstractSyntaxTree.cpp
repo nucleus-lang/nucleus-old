@@ -352,6 +352,12 @@ llvm::Function* AST::FunctionPrototype::codegen()
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if(dynamic_cast<NestedArray*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+		else if(dynamic_cast<StructTy*>(type.get()) != nullptr)
+			{
+				StructTy* getStruct = (StructTy*)type.get();
+
+				llvmArgs.push_back(getStruct->existingStruct);
+			}
 		else
 			return CodeGeneration::LogErrorFLLVM("One of the argument types is unknown.");
 	}
@@ -830,16 +836,31 @@ llvm::Value* AST::Var::codegen()
 
 				InitVal = getNA->codegen();
 			}
+			else if(dynamic_cast<StructTy*>(VarNames[i].type.get()))
+			{
+				StructTy* getStruct = (StructTy*)VarNames[i].type.get();
+
+				InitVal = llvm::ConstantStruct::get(getStruct->existingStruct);
+			}
 		}
 
 		llvm::AllocaInst* Alloca = nullptr;
 
-		if(dynamic_cast<Array*>(VarNames[i].type.get()))
-			Alloca = CodeGeneration::Builder->CreateAlloca(InitVal->getType(), 0, VarName.c_str());
-		else if(dynamic_cast<NestedArray*>(VarNames[i].type.get()))
-			Alloca = (llvm::AllocaInst*)InitVal;
+		llvm::Type* getT = InitVal->getType();
+
+		if(dynamic_cast<NestedArray*>(VarNames[i].type.get()) == nullptr)
+		{
+			if(!VarNames[i].type->isPointer)
+			{
+				Alloca = CodeGeneration::Builder->CreateAlloca(getT, 0, VarName.c_str());
+			}
+			else
+			{
+				Alloca = CodeGeneration::Builder->CreateAlloca(getT->getPointerTo(), 0, VarName.c_str());
+			}
+		}
 		else
-			Alloca = CodeGeneration::CreateEntryAllocation(TheFunction, VarName);
+			Alloca = (llvm::AllocaInst*)InitVal;
 
 		if(dynamic_cast<NestedArray*>(VarNames[i].type.get()) == nullptr)
 			CodeGeneration::Builder->CreateStore(InitVal, Alloca);
@@ -902,6 +923,12 @@ llvm::Value* AST::Array::codegen()
 
 				values.push_back(llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(getASTI->bit, 0, false)));
 			}
+			else if(dynamic_cast<StructTy*>(type.get()) != nullptr)
+			{
+				StructTy* getStruct = (StructTy*)type.get();
+
+				values.push_back(llvm::ConstantStruct::get(getStruct->existingStruct));
+			}
 		}
 	}
 	else
@@ -914,6 +941,8 @@ llvm::Value* AST::Array::codegen()
 				values.push_back((llvm::ConstantFP*)getV);
 			else if(static_cast<llvm::ConstantInt*>(getV) != nullptr)
 				values.push_back((llvm::ConstantInt*)getV);
+			else if(static_cast<llvm::ConstantStruct*>(getV) != nullptr)
+				values.push_back((llvm::ConstantStruct*)getV);
 			else
 				return CodeGeneration::LogErrorV("Variable initialized in array is not constant.");
 		}
@@ -1029,6 +1058,37 @@ llvm::Value* AST::NestedArray::codegen()
 llvm::Value* AST::NestedArrayContent::codegen()
 {
 	return CodeGeneration::LogErrorV("TODO: Implement Two-Dimensional Array Content Codegen!");
+}
+
+llvm::Type* AST::StructEx::codegen()
+{
+	std::cout << "StructEx CodeGen...\n";
+	std::vector<llvm::Type*> v;
+
+	for(int i = 0; i < variables.size(); i++)
+	{
+		AST::Var* var = (AST::Var*)variables[i].get();
+
+		for(int j = 0; j < var->VarNames.size(); j++)
+		{
+			llvm::Value* val = var->VarNames[j].type->codegen();
+
+			if(!var->VarNames[j].type->isPointer && !val->getType()->isArrayTy())
+				v.push_back(val->getType());
+			else
+				v.push_back(val->getType()->getPointerTo());
+		}
+	}
+
+	llvm::StructType* sType = llvm::StructType::create(*CodeGeneration::TheContext, Name);
+	sType->setBody(llvm::ArrayRef<llvm::Type*>(v), /* packed */ false);
+	CodeGeneration::allStructs.push_back(sType);
+	return sType;
+}
+
+llvm::Value* AST::StructTy::codegen()
+{
+	return CodeGeneration::LogErrorV("You shouldn't access this codegen! This is to store data only!");
 }
 
 void AST::EmitLocation(AST::Expression* a)

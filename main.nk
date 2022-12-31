@@ -1,20 +1,22 @@
-extern print(content: string) -> int;
-extern printi(x: int) -> int;
-
-func main(argc: int, argv: <string>) -> int
+struct IOBuffer
 {
-	for(i: int = 0; i < argc - 1; 1)
-	{
-		print("Argument ");
-		printi(i);
-		print(": ");
-		print(argv<i>);
+	ptr pointer: char;
 
-		if(i < argc - 1) 
-			{ print(" | "); }
-		else
-			{ print(" "); }
-	}
+	var content: int;
+
+	ptr base: char;
+
+	var flag: int;
+	var file: int;
+	var charBuffer: int;
+	var bufferSize: int;
+
+	var TemporaryName: string;
+};
+
+func main() -> int
+{
+	var test: IOBuffer;
 
 	0;
 }

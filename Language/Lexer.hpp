@@ -52,6 +52,10 @@ enum Token
 
   TK_String = -24,
   TK_StringContent = -25,
+
+  TK_Ptr = -26,
+
+  TK_Struct = -27,
 };
 
 struct SourceLocation
@@ -133,6 +137,8 @@ struct Lexer
 
         if(IdentifierStr == "var")
           return Token::TK_Var;
+        if(IdentifierStr == "ptr")
+          return Token::TK_Ptr;
 
         if(IdentifierStr == "binary")
           return Token::TK_Binary;
@@ -151,6 +157,9 @@ struct Lexer
           return Token::TK_True;
         if(IdentifierStr == "false")
           return Token::TK_False;
+
+        if(IdentifierStr == "struct")
+          return Token::TK_Struct;
 
         return Token::TK_Identifier;
       }
