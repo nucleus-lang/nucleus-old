@@ -1,0 +1,18 @@
+{
+    "commit_message": "$1: $2+",
+    "commit_message_arguments": [
+        {
+            "argument": 1,
+            "case": "sentence",
+            "type_enums": [
+                "New",
+                "Fix",
+                "Feat",
+                "Deps",
+                "Refactor",
+                "Cleanup",
+                "Release"
+            ]
+        }
+    ]
+}
