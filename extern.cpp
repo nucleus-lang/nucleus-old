@@ -4,7 +4,17 @@
 #define DLLEXPORT
 #endif
 
+#include <pthread.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstdarg>
+#include <cstring>
 #include <iostream>
+#include <algorithm>
+#include <numeric>
+#include <future>
+#include <vector>
+#include <execution>
 
 extern "C" DLLEXPORT double putchard(double X) {
   fputc((char)X, stderr);
@@ -28,9 +38,34 @@ extern "C" DLLEXPORT char printchar(char X)
   return X;
 }
 
-extern "C" DLLEXPORT int print(const char* X)
+std::vector<unsigned char> buffer;
+
+extern "C" DLLEXPORT int bprint(const char* str, ...)
 {
-  printf(X);
+  for(int i = 0; i < strlen(str); i++)
+  {
+    buffer.push_back(str[i]);
+  }
+
+  return 0;
+}
+
+extern "C" DLLEXPORT int bprintfinish(...)
+{
+  va_list vl;
+  va_start( vl, &buffer[0] );
+  fwrite(&buffer[0], buffer.size(), 1, stdout); 
+  va_end(vl);
+  buffer.clear();
+  return 0;
+}
+
+extern "C" DLLEXPORT int print(const char* str, ...)
+{
+  va_list vl;
+  va_start( vl, str );
+  fwrite(str, strlen(str), 1, stdout); 
+  va_end(vl);
   return 0;
 }
 

@@ -18,6 +18,8 @@ llvm::Value* CodeGeneration::lastLLVMInOp = nullptr;
 std::unique_ptr<llvm::orc::JITCompiler> CodeGeneration::TheJIT;
 llvm::ExitOnError CodeGeneration::ExitOnErr;
 
+std::vector<llvm::StructType*> CodeGeneration::allStructs;
+
 std::unique_ptr<llvm::DIBuilder> CodeGeneration::DBuilder;
 
 llvm::DICompileUnit* CodeGeneration::DebugInfo::TheCU;
@@ -87,7 +89,7 @@ void CodeGeneration::Initialize()
 
  	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
-#if 1
+#if 0
 
  	llvm::PassManagerBuilder Builder;
 

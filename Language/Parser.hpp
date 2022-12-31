@@ -123,16 +123,12 @@ struct Parser
 		
 					Lexer::GetNextToken();
 		
-					disableOperators = true;
-		
 					Ind = ParseExpression();
 		
 					if(!Ind)
 						return nullptr;
 		
 					nestedArray->TDArrayIndex = std::move(Ind);
-		
-					disableOperators = false;
 		
 					if(Lexer::CurrentToken != '>')
 						return LogError("Expected '>' to close two-dimensional array item. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
@@ -271,6 +267,9 @@ struct Parser
 		switch(Lexer::CurrentToken)
 		{
 			default:
+				if(Lexer::CurrentToken == Token::TK_Var || Lexer::CurrentToken == Token::TK_Ptr)
+					return ParseVar();
+
 				return LogError("Unknown token '" + std::to_string(Lexer::CurrentToken) + "' when expecting an expression");
 			case Token::TK_Identifier:
 				return ParseIdentifier();
@@ -290,8 +289,6 @@ struct Parser
 				return ParseIfExpression();
 			case Token::TK_For:
 				return ParseForExpression();
-			case Token::TK_Var:
-				return ParseVar();
 
 			case '[':
 				return ParseArrayInit();
@@ -727,6 +724,20 @@ struct Parser
 		{
 			ty = ParseString();
 		}
+		else
+		{
+			for(auto i : CodeGeneration::allStructs)
+			{
+				std::string GetName = std::string(i->getName());
+
+				if(GetName == Lexer::IdentifierStr)
+				{
+					Lexer::GetNextToken();
+
+					return std::make_unique<AST::StructTy>(i);
+				}
+			}
+		}
 
 		if(Lexer::CurrentToken == '[')
 		{
@@ -1028,8 +1039,17 @@ struct Parser
 		return nullptr;
 	}
 
-	static std::unique_ptr<AST::Expression> ParseVar()
+	static std::unique_ptr<AST::Expression> ParseVar(bool isInStruct = false)
 	{
+		//std::cout << "Parser Found Var!\n";
+
+		bool isPointer = false;
+
+		if(Lexer::CurrentToken == Token::TK_Ptr)
+		{
+			isPointer = true;
+		}
+
 		Lexer::GetNextToken();
 
 		std::vector<AST::VarStruct> VarNames;
@@ -1056,6 +1076,8 @@ struct Parser
 			Type = ParseFunctionType();
 			if(!Type) return nullptr;
 
+			Type->isPointer = isPointer;
+
 			if(dynamic_cast<AST::Array*>(Type.get()) != nullptr)
 				Parser::lastArray = (AST::Array*)Type.get();
 
@@ -1072,6 +1094,8 @@ struct Parser
 
 				Init = ParseExpression();
 				if(!Init) return nullptr;
+
+				Init->isPointer = isPointer;
 
 				if(dynamic_cast<AST::ArrayInitContent*>(Init.get()) != nullptr)
 				{
@@ -1131,11 +1155,74 @@ struct Parser
 
 		Lexer::GetNextToken();
 
-		auto Body = ParseExpression();
-		if(!Body)
-			return nullptr;
+		std::unique_ptr<AST::Expression> Body;
+
+		if(!isInStruct)
+		{
+			Body = ParseExpression();
+			if(!Body)
+				return nullptr;
+		}
 
 		return std::make_unique<AST::Var>(std::move(VarNames), std::move(Body));
+	}
+
+	static std::unique_ptr<AST::StructEx> ParseStruct()
+	{
+		Lexer::GetNextToken();
+
+		std::string Name = Lexer::IdentifierStr;
+		currentIdentifierString = Name;
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '{')
+		{
+			//std::cout << "Error: Expected '{' at start of struct. Current Token: " << std::to_string(Lexer::CurrentToken) << ".\n";
+			exit(1);
+		}
+
+		Lexer::GetNextToken();
+
+		std::vector<std::unique_ptr<AST::Expression>> variables;
+
+		if(Lexer::CurrentToken != '}')
+		{
+			while(1)
+			{
+				if(Lexer::CurrentToken != Token::TK_Var && Lexer::CurrentToken != Token::TK_Ptr)
+				{
+					//std::cout << "Error: Expected '{' at start of struct. Current Token: " << std::to_string(Lexer::CurrentToken) << ".\n";
+					exit(1);
+				}
+
+				//std::cout << "Parsing Var..." << std::endl;
+
+				auto Vars = ParseVar(true);
+				if(!Vars)
+				{
+					//std::cout << "Error: Returned nullptr: " << std::to_string(Lexer::CurrentToken) << ".\n";
+					exit(1);
+				}
+
+				variables.push_back(std::move(Vars));
+
+				//std::cout << "Var Done!" << std::endl;
+
+				if(Lexer::CurrentToken == '}')
+					break;
+			}
+		}
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != Token::TK_DotComma)
+		{
+			//std::cout << "Expected ';' at end of struct. Current Token: " << std::to_string(Lexer::CurrentToken) << ".\n";
+			exit(1);
+		}
+
+		return std::make_unique<AST::StructEx>(Name, std::move(variables));
 	}
 };
 
@@ -1176,6 +1263,25 @@ struct ParseTesting
 				
 				//std::cout << "Finished Extern...\n";
 			}
+		}
+		else
+			Lexer::GetNextToken();
+	}
+
+	static void Struct()
+	{
+		if(auto StAST = Parser::ParseStruct())
+		{
+			//std::cout << "Handling Definition...\n";
+
+			if(auto *StIR = StAST->codegen())
+			{
+				//fprintf(stderr, "Parsed a function definition:\n\n");
+				//StIR->print(llvm::errs());
+				//fprintf(stderr, "\n");
+			}
+
+			//std::cout << "Finished Definition...\n";
 		}
 		else
 			Lexer::GetNextToken();

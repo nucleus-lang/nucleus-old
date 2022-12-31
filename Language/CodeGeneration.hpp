@@ -74,6 +74,8 @@ struct CodeGeneration
 
 	static std::unique_ptr<llvm::DIBuilder> DBuilder;
 
+	static std::vector<llvm::StructType*> allStructs;
+
 	struct DebugInfo
 	{
 		static llvm::DICompileUnit* TheCU;

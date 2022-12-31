@@ -14,6 +14,8 @@ struct AST
 
 	struct Expression
 	{
+		bool isPointer = false;
+
 		SourceLocation Loc;
 
 		Expression(SourceLocation Loc = Lexer::CurrentLocation) : Loc(Loc) {}
@@ -413,7 +415,7 @@ struct AST
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
 		{
-			Expression::Dump(out << "nestedarraycontent", index);
+			//Expression::Dump(out << "nestedarraycontent", index);
 
 			//for(const auto& NamedVar : variables)
 			//{
@@ -424,6 +426,50 @@ struct AST
 		}
 
 		llvm::Value* codegen() override;
+	};
+
+	struct StructTy : public Expression
+	{
+		llvm::StructType* existingStruct = nullptr;
+
+		StructTy(llvm::StructType* s) : existingStruct(s) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			//Expression::Dump(out << "nestedarraycontent", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
+	};
+
+	struct StructEx
+	{
+		std::string Name;
+		std::vector<std::unique_ptr<Expression>> variables;
+
+		StructEx(std::string n, std::vector<std::unique_ptr<Expression>> v) :
+		Name(n), variables(std::move(v)) {}
+
+		//llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		//{
+		//	Expression::Dump(out << "struct", index);
+
+		//	//for(const auto& NamedVar : variables)
+		//	//{
+		//	//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+		//	//}
+
+		//	return out;
+		//}
+
+		llvm::Type* codegen();
 	};
 
 	static llvm::DIType* GetFunctionDIType(AST::Expression* t);
