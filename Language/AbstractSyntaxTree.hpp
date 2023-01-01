@@ -122,6 +122,8 @@ struct AST
 		bool isTDArrayElement = false;
 		bool isTDArrayPointer = false;
 
+		bool structMemberStore = false;
+
 		std::unique_ptr<Expression> TDArrayIndex;
 		std::unique_ptr<Expression> arrayIndex;
 
@@ -430,9 +432,10 @@ struct AST
 
 	struct StructTy : public Expression
 	{
+		std::string structName;
 		llvm::StructType* existingStruct = nullptr;
 
-		StructTy(llvm::StructType* s) : existingStruct(s) {}
+		StructTy(std::string sN, llvm::StructType* s) : structName(sN), existingStruct(s) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
 		{
@@ -453,6 +456,7 @@ struct AST
 	{
 		std::string Name;
 		std::vector<std::unique_ptr<Expression>> variables;
+		llvm::StructType* StructLLVM = nullptr;
 
 		StructEx(std::string n, std::vector<std::unique_ptr<Expression>> v) :
 		Name(n), variables(std::move(v)) {}
@@ -470,6 +474,29 @@ struct AST
 		//}
 
 		llvm::Type* codegen();
+	};
+
+	struct StructMember : public Expression
+	{
+		std::unique_ptr<AST::Expression> structVar;
+		std::unique_ptr<AST::Expression> indexVar;
+
+		StructMember(std::unique_ptr<AST::Expression> s, std::unique_ptr<AST::Expression> i) :
+		structVar(std::move(s)), indexVar(std::move(i)) {}
+
+		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
+		{
+			//Expression::Dump(out << "nestedarraycontent", index);
+
+			//for(const auto& NamedVar : variables)
+			//{
+			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
+			//}
+
+			return out;
+		}
+
+		llvm::Value* codegen() override;
 	};
 
 	static llvm::DIType* GetFunctionDIType(AST::Expression* t);

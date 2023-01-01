@@ -234,7 +234,7 @@ struct Lexer
 
       }
     
-      if (isdigit(LastChar) || LastChar == '.' || LastChar == 'f') { // Number: [0-9.]+
+      if (isdigit(LastChar)) { // Number: [0-9.]+
         std::string NumStr;
         do {
           NumStr += LastChar;

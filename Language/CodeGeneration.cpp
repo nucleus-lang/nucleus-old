@@ -18,8 +18,6 @@ llvm::Value* CodeGeneration::lastLLVMInOp = nullptr;
 std::unique_ptr<llvm::orc::JITCompiler> CodeGeneration::TheJIT;
 llvm::ExitOnError CodeGeneration::ExitOnErr;
 
-std::vector<llvm::StructType*> CodeGeneration::allStructs;
-
 std::unique_ptr<llvm::DIBuilder> CodeGeneration::DBuilder;
 
 llvm::DICompileUnit* CodeGeneration::DebugInfo::TheCU;

@@ -14,8 +14,13 @@ AST::Array* Parser::lastArray = nullptr;
 AST::NestedArray* Parser::lastNestedArray = nullptr;
 unsigned int Parser::bracketCount = 0;
 std::vector<std::string> Parser::localArrayNames, Parser::localNestedArrayNames;
+
+std::vector<std::pair<std::string, std::string>> Parser::localStructVariables;
+
 std::string Parser::currentIdentifierString;
 bool Parser::dotCommaAsOperator = true, Parser::beginNestedArray = false, Parser::endNestedArray = true, Parser::disableOperators = false;
+
+std::vector<std::unique_ptr<AST::StructEx>> Parser::AllStructs;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};

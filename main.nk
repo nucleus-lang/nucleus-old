@@ -1,22 +1,14 @@
-struct IOBuffer
+struct STDHandle
 {
-	ptr pointer: char;
-
-	var content: int;
-
-	ptr base: char;
-
-	var flag: int;
-	var file: int;
-	var charBuffer: int;
-	var bufferSize: int;
-
-	var TemporaryName: string;
+	var WindowsHND: int;
+	var LinuxHND: string;
 };
 
 func main() -> int
 {
-	var test: IOBuffer;
+	var test: STDHandle;
+
+	test.WindowsHND = 0 - 11;
 
 	0;
 }

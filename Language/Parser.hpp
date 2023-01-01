@@ -10,9 +10,14 @@ struct Parser
 	static AST::Array* lastArray;
 	static AST::NestedArray* lastNestedArray;
 	static std::vector<std::string> localArrayNames, localNestedArrayNames;
+
+	static std::vector<std::pair<std::string, std::string>> localStructVariables;
+
 	static std::string currentIdentifierString;
 	static unsigned int bracketCount;
 	static bool dotCommaAsOperator, beginNestedArray, endNestedArray, disableOperators;
+
+	static std::vector<std::unique_ptr<AST::StructEx>> AllStructs;
 
 	template<typename TO, typename FROM>
 	static std::unique_ptr<TO> static_unique_pointer_cast (std::unique_ptr<FROM>&& old)
@@ -98,7 +103,29 @@ struct Parser
 		return V;
 	}
 
-	static std::unique_ptr<AST::Expression> ParseIdentifier()
+	static std::vector<std::string> SplitIntoVector(const std::string& s, const char* c)
+	{
+		std::vector<std::string> newV;
+		std::string::size_type i = 0;
+		std::string::size_type j = s.find(c);
+	
+		while (j != std::string::npos)
+		{
+			newV.push_back(s.substr(i, j - i));
+			i = ++j;
+			j = s.find(c, j);
+	
+			if (j == std::string::npos)
+				newV.push_back(s.substr(i, s.length()));
+		}
+	
+		if (newV.size() == 0)
+			newV.push_back(s);
+	
+		return newV;
+	}
+
+	static std::unique_ptr<AST::Expression> ParseIdentifier(bool recursiveAnalysis = false)
 	{
 		std::string idName = Lexer::IdentifierStr;
 
@@ -107,6 +134,60 @@ struct Parser
 		SourceLocation LitLoc = Lexer::CurrentLocation;
 
 		Lexer::GetNextToken();
+
+		//std::unique_ptr<AST::Variable> structVar = std::make_unique<AST::Variable>(LitLoc, idName);
+
+		if(Lexer::CurrentToken == '.')
+		{
+			std::unique_ptr<AST::Variable> structMember = std::make_unique<AST::Variable>(LitLoc, idName);
+			structMember->isArrayElement = true;
+
+			//std::cout << "Checking 0...\n";
+
+			for(auto i : localStructVariables)
+			{
+				if(i.first == idName)
+				{
+					//std::cout << "Checking 1...\n";
+
+					for(int j = 0; j < Parser::AllStructs.size(); j++)
+					{
+						if(Parser::AllStructs[j]->Name == i.second)
+						{
+							Lexer::GetNextToken();
+
+							auto GetSecondVar = ParseIdentifier();
+
+							if(static_cast<AST::Variable*>(GetSecondVar.get()))
+							{
+								//std::cout << "Checking 2...\n";
+
+								AST::Variable* getV = (AST::Variable*)GetSecondVar.get();
+
+								std::string GetName = getV->name;
+
+								for(int m = 0; m < Parser::AllStructs[j]->variables.size(); m++)
+								{
+									AST::Var* p = (AST::Var*)Parser::AllStructs[j]->variables[m].get();
+
+									//std::cout << "Checking 3...\n";
+
+									if(p->VarNames[0].name == GetName)
+									{
+										auto ind = std::make_unique<AST::Number>(std::to_string(m));
+										ind->bit = 32;
+
+										structMember->arrayIndex = std::move(ind);
+
+										return structMember;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 
 		if(Lexer::CurrentToken == '<')
 		{
@@ -165,6 +246,7 @@ struct Parser
 		}
 		else if(Lexer::CurrentToken != '(')
 		{
+
 			for(auto i : localArrayNames)
 			{
 				if(i == idName)
@@ -726,15 +808,15 @@ struct Parser
 		}
 		else
 		{
-			for(auto i : CodeGeneration::allStructs)
+			for(int i = 0; i < AllStructs.size(); i++)
 			{
-				std::string GetName = std::string(i->getName());
+				std::string GetName = std::string(AllStructs[i]->StructLLVM->getName());
 
 				if(GetName == Lexer::IdentifierStr)
 				{
 					Lexer::GetNextToken();
 
-					return std::make_unique<AST::StructTy>(i);
+					return std::make_unique<AST::StructTy>(AllStructs[i]->Name, AllStructs[i]->StructLLVM);
 				}
 			}
 		}
@@ -779,6 +861,8 @@ struct Parser
 	static std::unique_ptr<AST::Function> ParseDefinition()
 	{
 		localArrayNames.clear();
+		localNestedArrayNames.clear();
+		localStructVariables.clear();
 
 		Lexer::GetNextToken();
 
@@ -1138,6 +1222,24 @@ struct Parser
 			v.name = Name;
 			v.body = std::move(Init);
 
+			if(v.name == "test")
+			{
+				//std::cout << "test Found!\n";
+			}
+
+			if(dynamic_cast<AST::StructTy*>(v.type.get()) != nullptr)
+			{
+				AST::StructTy* stru = (AST::StructTy*)v.type.get();
+			
+				//std::cout << "Adding Struct Local Variable... Name: " << Name << "\n";
+			
+				localStructVariables.push_back(std::make_pair(Name, stru->structName));
+			}
+			else
+			{
+				//std::cout << "test is not StructTy!\n";
+			}
+
 			VarNames.push_back(std::move(v));
 
 			if(Lexer::CurrentToken != ',') { break; }
@@ -1276,9 +1378,7 @@ struct ParseTesting
 
 			if(auto *StIR = StAST->codegen())
 			{
-				//fprintf(stderr, "Parsed a function definition:\n\n");
-				//StIR->print(llvm::errs());
-				//fprintf(stderr, "\n");
+				Parser::AllStructs.push_back(std::move(StAST));
 			}
 
 			//std::cout << "Finished Definition...\n";

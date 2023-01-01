@@ -96,6 +96,39 @@ llvm::Value* AST::Variable::codegen()
 	//	return CodeGeneration::Builder->CreateInBoundsGEP(i32zero->getType(), CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str()), llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
 	//}
 	
+	//if(Owner != nullptr)
+	//{
+	//	llvm::Value* ownerV = Owner->codegen();
+//
+	//	for(int i = 0; i < Parser::AllStructs.size(); i++)
+	//	{
+	//		std::string GetName = std::string(ownerV->getName());
+//
+//
+	//		if(Parser::AllStructs[i]->Name == std::string(static_cast<llvm::StructType*>(ownerV->getType())->getName()))
+	//		{
+	//			for(int j = 0; j < Parser::AllStructs[i]->variables.size(); j++)
+	//			{
+	//				if(static_cast<AST::Var*>(Parser::AllStructs[i]->variables[j].get()))
+	//				{
+	//					AST::Var* structMember = (AST::Var*)Parser::AllStructs[i]->variables[j].get();
+//
+	//					if(structMember->VarNames[0].name == name)
+	//					{
+	//						llvm::Value* member_index = llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, j, false));
+	//						llvm::Value* indices[2] = {llvm::ConstantInt::get(member_index->getType(), 0), member_index};
+	//					
+	//						llvm::Value* finalVal = CodeGeneration::Builder->CreateInBoundsGEP(Parser::AllStructs[i]->StructLLVM, ownerV, llvm::ArrayRef<llvm::Value*>(indices, 2), "membtmp");
+//
+	//						std::string finalValString = GetName + "." + structMember->VarNames[0].name;
+//
+	//						return finalVal;
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
 	if(isArrayElement || isArrayPointer)
 	{
 		llvm::Value* index = arrayIndex->codegen();
@@ -106,10 +139,55 @@ llvm::Value* AST::Variable::codegen()
 
 		std::string idx = name + "idx";
 
-		if(isArrayElement)
+		if(isArrayElement && !vType->isStructTy())
 			return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
-		else if(isArrayPointer)
-			return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+		else if(isArrayPointer || vType->isStructTy())
+		{
+			if(isArrayPointer || structMemberStore)
+				return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+			else
+			{
+				llvm::StructType* structVar = (llvm::StructType*)vType;
+				llvm::Type* varType = nullptr;
+				int structMemberIndex = 0;
+
+				if (llvm::ConstantInt* CI = static_cast<llvm::ConstantInt*>(index)) 
+				{
+					if (CI->getBitWidth() <= 32)
+					{
+						structMemberIndex = CI->getSExtValue();
+					}
+				}
+
+				for(int i = 0; i < Parser::AllStructs.size(); i++)
+				{
+					if(Parser::AllStructs[i]->Name == std::string(structVar->getName()))
+					{
+						std::cout << "Struct Found! Generating Type...\n";
+
+						AST::Var* tVar = (AST::Var*)Parser::AllStructs[i]->variables[structMemberIndex].get();
+						AST::Expression* tExpr = tVar->VarNames[0].type.get();
+
+						if(dynamic_cast<Double*>(tExpr) != nullptr)
+							varType = llvm::Type::getDoubleTy(*CodeGeneration::TheContext);
+						else if(dynamic_cast<Integer*>(tExpr) != nullptr)
+						{
+							Integer* getI = (Integer*)tExpr;
+							varType = GetASTIntegerType(getI);
+						}
+						else if(dynamic_cast<Float*>(tExpr) != nullptr)
+							varType = llvm::Type::getFloatTy(*CodeGeneration::TheContext);
+
+						break;
+					}
+				}
+
+				if(varType == nullptr)
+					return CodeGeneration::LogErrorV("Struct Member not found :(");
+
+				return CodeGeneration::Builder->CreateLoad(varType, CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+			}
+		}
 	}
 	else if(isTDArrayElement || isTDArrayPointer)
 	{
@@ -172,16 +250,27 @@ llvm::Value* AST::Binary::codegen()
 		AST::Variable* LHSE = dynamic_cast<AST::Variable*>(lhs.get());
 
 		if(!LHSE)
-			return CodeGeneration::LogErrorV("Destionation of '=' must be a variable.");
+			return CodeGeneration::LogErrorV("Destination of '=' must be a variable.");
 
 		llvm::Value* RVal = rhs->codegen();
 		if(!RVal)
 			return nullptr;
 
-		llvm::Value* Variable = CodeGeneration::NamedValues[LHSE->name];
+		llvm::Value* Variable = nullptr;
+
+		if(!LHSE->isArrayElement && !LHSE->isArrayPointer && !LHSE->isTDArrayElement && !LHSE->isTDArrayPointer)
+			Variable = CodeGeneration::NamedValues[LHSE->name];
+		else
+		{
+			LHSE->structMemberStore = true;
+			Variable = LHSE->codegen();
+		}
+
 
 		if(!Variable)
-			return CodeGeneration::LogErrorV("Unknown variable name.");
+		{
+			return CodeGeneration::LogErrorV("Unknown variable name: " + LHSE->name + ".");
+		}
 
 		CodeGeneration::Builder->CreateStore(RVal, Variable);
 		return RVal;
@@ -1082,13 +1171,26 @@ llvm::Type* AST::StructEx::codegen()
 
 	llvm::StructType* sType = llvm::StructType::create(*CodeGeneration::TheContext, Name);
 	sType->setBody(llvm::ArrayRef<llvm::Type*>(v), /* packed */ false);
-	CodeGeneration::allStructs.push_back(sType);
+	StructLLVM = sType;
 	return sType;
 }
 
 llvm::Value* AST::StructTy::codegen()
 {
 	return CodeGeneration::LogErrorV("You shouldn't access this codegen! This is to store data only!");
+}
+
+llvm::Value* AST::StructMember::codegen()
+{
+	if(static_cast<AST::StructMember*>(indexVar.get()))
+		indexVar->codegen();
+
+	if(static_cast<AST::Variable*>(indexVar.get()))
+		std::cout << "Numb is a Variable!\n";
+	else
+		std::cout << "Numb is not a Variable :c\n";
+	
+	return CodeGeneration::LogErrorV("Stop StructMember CodeGen.");
 }
 
 void AST::EmitLocation(AST::Expression* a)
