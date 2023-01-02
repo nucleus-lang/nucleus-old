@@ -56,6 +56,8 @@ enum Token
   TK_Ptr = -26,
 
   TK_Struct = -27,
+
+  TK_GenericPointer = -28,
 };
 
 struct SourceLocation
@@ -108,7 +110,7 @@ struct Lexer
 
       CurrentLocation = LexerLocation;
     
-      if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
+      if (isalpha(LastChar) || LastChar == '_') { // identifier: [a-zA-Z][a-zA-Z0-9]*
         IdentifierStr = LastChar;
         while (isalnum((LastChar = Advance())))
           IdentifierStr += LastChar;
@@ -152,6 +154,9 @@ struct Lexer
 
         if(IdentifierStr == "bool")
           return Token::TK_Bool;
+
+        if(IdentifierStr == "GENERIC")
+          return Token::TK_GenericPointer;
 
         if(IdentifierStr == "true")
           return Token::TK_True;

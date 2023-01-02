@@ -551,7 +551,8 @@ struct Parser
 		return Lexer::CurrentToken == Token::TK_Integer ||
 		Lexer::CurrentToken == Token::TK_Double ||
 		Lexer::CurrentToken == Token::TK_Float ||
-		Lexer::CurrentToken == Token::TK_String;
+		Lexer::CurrentToken == Token::TK_String ||
+		Lexer::CurrentToken == Token::TK_GenericPointer;
 	}
 
 	static std::unique_ptr<AST::FunctionPrototype> ParsePrototype()
@@ -801,6 +802,11 @@ struct Parser
 		{
 			Lexer::GetNextToken();
 			ty = std::make_unique<AST::Float>(0);
+		}
+		else if(Lexer::CurrentToken == Token::TK_GenericPointer)
+		{
+			Lexer::GetNextToken();
+			ty = std::make_unique<AST::Generic>();
 		}
 		else if(Lexer::CurrentToken == Token::TK_String)
 		{
@@ -1111,7 +1117,7 @@ struct Parser
 
 	static std::unique_ptr<AST::Expression> ParseUnary()
 	{
-		if(!isascii(Lexer::CurrentToken) || Lexer::CurrentToken == '(' || Lexer::CurrentToken == ',' || Lexer::CurrentToken == '[' || Lexer::CurrentToken == '<')
+		if(!isascii(Lexer::CurrentToken) || Lexer::CurrentToken == '(' || Lexer::CurrentToken == ',' || Lexer::CurrentToken == '[' || Lexer::CurrentToken == '<' || Lexer::CurrentToken == '_')
 			return ParsePrimary();
 
 		int Opc = Lexer::CurrentToken;

@@ -15,27 +15,11 @@
 #include <future>
 #include <vector>
 #include <execution>
-
-extern "C" DLLEXPORT double putchard(double X) {
-  fputc((char)X, stderr);
-  return 0;
-}
+#include <Windows.h>
 
 extern "C" DLLEXPORT double printd(double X) {
   fprintf(stderr, "%f\n", X);
   return 0;
-}
-
-extern "C" DLLEXPORT double HelloWorld()
-{
-  printf("Hello World!\n");
-  return 0;
-}
-
-extern "C" DLLEXPORT char printchar(char X)
-{
-  std::cout << X;
-  return X;
 }
 
 std::vector<unsigned char> buffer;
@@ -73,4 +57,17 @@ extern "C" DLLEXPORT int printi(unsigned int X)
 {
   printf("%i", X);
   return 0;
+}
+
+extern "C" DLLEXPORT HANDLE Win32GetStdHandle(int getHandle)
+{
+  return GetStdHandle(getHandle);
+}
+
+extern "C" DLLEXPORT int Win32WriteFile(HANDLE console, const char* str)
+{
+    DWORD dwBytesWritten{};
+    WriteFile(console, str, strlen(str), &dwBytesWritten, 0);
+
+    return 0;
 }

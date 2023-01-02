@@ -4,11 +4,29 @@ struct STDHandle
 	var LinuxHND: string;
 };
 
-func main() -> int
+extern Win32GetStdHandle(getHandle: GENERIC) -> GENERIC;
+extern Win32WriteFile(console: GENERIC, content: string) -> int;
+
+func print(getContent: string) -> int
 {
 	var test: STDHandle;
-
 	test.WindowsHND = 0 - 11;
+
+	var GetHandle: GENERIC = Win32GetStdHandle(test.WindowsHND);
+
+	Win32WriteFile(GetHandle, getContent);
+
+	0;
+}
+
+func main() -> int
+{
+	# var test: STDHandle;
+	# test.WindowsHND = 0 - 11;
+
+	# var GetHandle: GENERIC = Win32GetStdHandle(test.WindowsHND);
+
+	# Win32WriteFile(GetHandle, "Hello World!");
 
 	0;
 }

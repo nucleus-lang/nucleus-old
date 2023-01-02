@@ -476,23 +476,12 @@ struct AST
 		llvm::Type* codegen();
 	};
 
-	struct StructMember : public Expression
+	struct Generic : public Expression
 	{
-		std::unique_ptr<AST::Expression> structVar;
-		std::unique_ptr<AST::Expression> indexVar;
-
-		StructMember(std::unique_ptr<AST::Expression> s, std::unique_ptr<AST::Expression> i) :
-		structVar(std::move(s)), indexVar(std::move(i)) {}
+		Generic() {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
 		{
-			//Expression::Dump(out << "nestedarraycontent", index);
-
-			//for(const auto& NamedVar : variables)
-			//{
-			//	NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
-			//}
-
 			return out;
 		}
 

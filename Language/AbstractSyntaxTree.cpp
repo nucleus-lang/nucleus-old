@@ -437,7 +437,7 @@ llvm::Function* AST::FunctionPrototype::codegen()
 		}
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
-		else if(dynamic_cast<Array*>(i.first.get()) != nullptr)
+		else if(dynamic_cast<Array*>(i.first.get()) != nullptr || dynamic_cast<Generic*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if(dynamic_cast<NestedArray*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
@@ -468,6 +468,8 @@ llvm::Function* AST::FunctionPrototype::codegen()
 	}
 	else if(dynamic_cast<Float*>(type.get()) != nullptr)
 		FT = llvm::FunctionType::get(llvm::Type::getFloatTy(*CodeGeneration::TheContext), llvmArgs, false);
+	else if(dynamic_cast<Generic*>(type.get()) != nullptr)
+		FT = llvm::FunctionType::get(llvm::PointerType::getUnqual(*CodeGeneration::TheContext), llvmArgs, false);
 	else
 		return CodeGeneration::LogErrorFLLVM("Unknown function type.");
 
@@ -1180,17 +1182,9 @@ llvm::Value* AST::StructTy::codegen()
 	return CodeGeneration::LogErrorV("You shouldn't access this codegen! This is to store data only!");
 }
 
-llvm::Value* AST::StructMember::codegen()
+llvm::Value* AST::Generic::codegen()
 {
-	if(static_cast<AST::StructMember*>(indexVar.get()))
-		indexVar->codegen();
-
-	if(static_cast<AST::Variable*>(indexVar.get()))
-		std::cout << "Numb is a Variable!\n";
-	else
-		std::cout << "Numb is not a Variable :c\n";
-	
-	return CodeGeneration::LogErrorV("Stop StructMember CodeGen.");
+	return CodeGeneration::LogErrorV("Can't access GENERIC codegen! Its a Type!");
 }
 
 void AST::EmitLocation(AST::Expression* a)
