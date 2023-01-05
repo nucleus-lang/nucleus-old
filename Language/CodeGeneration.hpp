@@ -51,7 +51,9 @@ struct CodeGeneration
 	static std::unique_ptr<llvm::LLVMContext> TheContext;
 	static std::unique_ptr<llvm::IRBuilder<>> Builder;
 	static std::unique_ptr<llvm::Module> TheModule;
+
 	static std::map<std::string, llvm::AllocaInst*> NamedValues;
+	
 	static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 	static std::unique_ptr<llvm::orc::JITCompiler> TheJIT;
 	static llvm::ExitOnError ExitOnErr;

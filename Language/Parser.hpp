@@ -64,7 +64,7 @@ struct Parser
 	static std::unique_ptr<AST::Expression> ParseCharValue()
 	{
 		std::unique_ptr<AST::Number> Result = std::make_unique<AST::Number>(std::to_string((int)Lexer::CharVal));
-		Result->bit = 32;
+		Result->bit = 8;
 		Lexer::GetNextToken();
 		return std::move(Result);
 	}
@@ -510,6 +510,14 @@ struct Parser
 			SourceLocation BinLoc = Lexer::CurrentLocation;
 			Lexer::GetNextToken();
 
+			int secondBinaryOperator = 0;
+
+			if(Lexer::CurrentToken == '=')
+			{
+				secondBinaryOperator = Lexer::CurrentToken;
+				Lexer::GetNextToken();
+			}
+
 			if(Lexer::CurrentToken == '}')
 				return LHS;
 
@@ -527,6 +535,16 @@ struct Parser
 			}
 
 			LHS = std::make_unique<AST::Binary>(BinLoc, BinaryOperator, std::move(LHS), std::move(RHS));
+
+			if(dynamic_cast<AST::Binary*>(LHS.get()))
+			{
+				std::unique_ptr<AST::Binary> getBin = static_unique_pointer_cast<AST::Binary>(std::move(LHS));
+
+				if(secondBinaryOperator != 0)
+					getBin->secondOp = secondBinaryOperator;
+
+				LHS = std::move(getBin);
+			}
 		}
 	}
 
@@ -1077,7 +1095,7 @@ struct Parser
 		}
 
 		if(Lexer::CurrentToken != ')')
-			return LogError("Expected ')' to close for loop args.");
+			return LogError("Expected ')' to close for loop args. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		dotCommaAsOperator = true;
 

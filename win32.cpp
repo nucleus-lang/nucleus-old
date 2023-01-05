@@ -6,15 +6,27 @@
 
 #include <Windows.h>
 
-extern "C" DLLEXPORT HANDLE Win32GetStdHandle(int getHandle)
+//extern "C" DLLEXPORT HANDLE Win32GetStdHandle(int getHandle)
+//{
+//  return GetStdHandle(getHandle);
+//}
+//
+//extern "C" DLLEXPORT int Win32WriteFile(HANDLE console, const char* str)
+//{
+//    DWORD dwBytesWritten{};
+//    WriteFile(console, str, strlen(str), &dwBytesWritten, 0);
+//
+//    return 0;
+//}
+
+extern "C" DLLEXPORT int printint(int i)
 {
-  return GetStdHandle(getHandle);
+	printf("%i\n", i);
+	return 0;
 }
 
-extern "C" DLLEXPORT int Win32WriteFile(HANDLE console, const char* str)
-{
-    DWORD dwBytesWritten{};
-    WriteFile(console, str, strlen(str), &dwBytesWritten, 0);
-
-    return 0;
-}
+//extern "C" DLLEXPORT int printstring(char* str)
+//{
+//	printf(str);
+//	return 0;
+//}

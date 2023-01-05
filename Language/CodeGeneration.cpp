@@ -10,7 +10,9 @@
 std::unique_ptr<llvm::LLVMContext> CodeGeneration::TheContext;
 std::unique_ptr<llvm::IRBuilder<>> CodeGeneration::Builder;
 std::unique_ptr<llvm::Module> CodeGeneration::TheModule;
+
 std::map<std::string, llvm::AllocaInst*> CodeGeneration::NamedValues;
+
 std::unique_ptr<llvm::legacy::FunctionPassManager> CodeGeneration::TheFPM;
 bool CodeGeneration::isPureNumber = false;
 int CodeGeneration::lastPureInt = 0;

@@ -140,11 +140,35 @@ llvm::Value* AST::Variable::codegen()
 		std::string idx = name + "idx";
 
 		if(isArrayElement && !vType->isStructTy())
-			return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+		{
+			//std::cout << "is an element from an array!\n";
+
+			//V->getAllocatedType()->print(llvm::outs());
+
+			if(!vType->isPointerTy())
+				return CodeGeneration::Builder->CreateLoad(V->getAllocatedType()->getArrayElementType(), CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), idx.c_str()), name.c_str());
+			else
+			{
+				indexList[0] = index;
+				indexList[1] = nullptr;
+
+				return CodeGeneration::Builder->CreateLoad(llvm::IntegerType::getInt8Ty(*CodeGeneration::TheContext), CodeGeneration::Builder->CreateInBoundsGEP(llvm::IntegerType::getInt8Ty(*CodeGeneration::TheContext), CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V), llvm::ArrayRef<llvm::Value*>(indexList, 1), idx.c_str()), name.c_str());
+			}
+		}
 		else if(isArrayPointer || vType->isStructTy())
 		{
 			if(isArrayPointer || structMemberStore)
-				return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+			{
+				if(!vType->isPointerTy())
+					return CodeGeneration::Builder->CreateInBoundsGEP(vType, V, llvm::ArrayRef<llvm::Value*>(indexList, 2), name.c_str());
+				else
+				{
+					indexList[0] = index;
+					indexList[1] = nullptr;
+	
+					return CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str());
+				}
+			}
 			else
 			{
 				llvm::StructType* structVar = (llvm::StructType*)vType;
@@ -163,7 +187,7 @@ llvm::Value* AST::Variable::codegen()
 				{
 					if(Parser::AllStructs[i]->Name == std::string(structVar->getName()))
 					{
-						std::cout << "Struct Found! Generating Type...\n";
+						//std::cout << "Struct Found! Generating Type...\n";
 
 						AST::Var* tVar = (AST::Var*)Parser::AllStructs[i]->variables[structMemberIndex].get();
 						AST::Expression* tExpr = tVar->VarNames[0].type.get();
@@ -239,42 +263,155 @@ llvm::Value* AST::Variable::codegen()
 	return CodeGeneration::Builder->CreateLoad(V->getAllocatedType(), V, name.c_str());
 }
 
+llvm::Value* GetLessThanOperator(llvm::Value* L, llvm::Value* R, int pCount, AST::Integer* LInt)
+{
+	bool isFloat = L->getType()->isFloatTy();
+	bool isDouble = L->getType()->isDoubleTy();
+	bool isInt = L->getType()->isIntegerTy();
+
+	llvm::Value* opLLVM = nullptr;
+
+	//std::cout << "LHS: ";
+	//L->print(llvm::outs());
+	//std::cout << "\n";
+
+	//std::cout << "RHS: ";
+	//R->print(llvm::outs());
+	//std::cout << "\n";
+
+	if(pCount == 2)
+	{
+		//std::cout << "Comparing two pure integers.\n";
+		R = CodeGeneration::Builder->CreateIntCast(R, L->getType(), false, "castmp");
+
+		L = CodeGeneration::Builder->CreateICmpULT(L, R, "cmptmp");
+	}
+	else
+	{
+		//std::cout << "Comparing floats or doubles.\n";
+		L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
+	}
+
+	if(isDouble)
+	{
+		//std::cout << "Compare type: Double\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isFloat)
+	{
+		//std::cout << "Compare type: Float\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isInt)
+	{
+		//std::cout << "CodeGen Condition Integer...\n";
+		if(!LInt)
+			return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
+		//std::cout << "Compare type: Integer\n";
+		opLLVM = CodeGeneration::Builder->CreateIntCast(L, AST::GetASTIntegerType(LInt), false, "booltmp");
+	}
+
+	return opLLVM;
+}
+
+llvm::Value* GetGreaterThanOperator(llvm::Value* L, llvm::Value* R, int pCount, AST::Integer* LInt)
+{
+	bool isFloat = L->getType()->isFloatTy();
+	bool isDouble = L->getType()->isDoubleTy();
+	bool isInt = L->getType()->isIntegerTy();
+
+	llvm::Value* opLLVM = nullptr;
+
+	//std::cout << "LHS: ";
+	//L->print(llvm::outs());
+	//std::cout << "\n";
+
+	//std::cout << "RHS: ";
+	//R->print(llvm::outs());
+	//std::cout << "\n";
+
+	if(pCount == 2)
+	{
+		//std::cout << "Comparing two pure integers.\n";
+		R = CodeGeneration::Builder->CreateIntCast(R, L->getType(), false, "castmp");
+
+		L = CodeGeneration::Builder->CreateICmpUGT(L, R, "cmptmp");
+	}
+	else
+	{
+		//std::cout << "Comparing floats or doubles.\n";
+		L = CodeGeneration::Builder->CreateFCmpUGT(L, R, "cmptmp");
+	}
+
+	if(isDouble)
+	{
+		//std::cout << "Compare type: Double\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isFloat)
+	{
+		//std::cout << "Compare type: Float\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isInt)
+	{
+		//std::cout << "CodeGen Condition Integer...\n";
+		if(!LInt)
+			return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
+		//std::cout << "Compare type: Integer\n";
+		opLLVM = CodeGeneration::Builder->CreateIntCast(L, AST::GetASTIntegerType(LInt), false, "booltmp");
+	}
+
+	return opLLVM;
+}
+
+llvm::Value* GetEqualsOperator(llvm::Value* L, llvm::Value* R, int pCount, AST::Integer* LInt = nullptr)
+{
+	bool isFloat = L->getType()->isFloatTy();
+	bool isDouble = L->getType()->isDoubleTy();
+	bool isInt = L->getType()->isIntegerTy();
+
+	llvm::Value* opLLVM = nullptr;
+
+	if(pCount == 2)
+	{
+		//std::cout << "Comparing two pure integers.\n";
+		L = CodeGeneration::Builder->CreateICmpEQ(L, CodeGeneration::Builder->CreateIntCast(R, L->getType(), false, "castmp"), "cmptmp");
+	}
+	else
+	{
+		//std::cout << "Comparing floats or doubles.\n";
+		L = CodeGeneration::Builder->CreateFCmpUEQ(L, R, "cmptmp");
+	}
+
+	if(isDouble)
+	{
+		//std::cout << "Compare type: Double\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isFloat)
+	{
+		//std::cout << "Compare type: Float\n";
+		opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
+	}
+	else if(isInt)
+	{
+		//AST::Integer* LInt = (AST::Integer*)lhs.get();
+		//std::cout << "CodeGen Condition Integer...\n";
+		if(!LInt)
+			return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
+		//std::cout << "Compare type: Integer\n";
+		opLLVM = CodeGeneration::Builder->CreateIntCast(L, AST::GetASTIntegerType(LInt), false, "booltmp");
+	}
+
+	return opLLVM;
+}
+
 llvm::Value* AST::Binary::codegen()
 {
 	//std::cout << "CodeGen Binary...\n";
 
 	//AST::EmitLocation(this);
-
-	if(op == '=')
-	{
-		AST::Variable* LHSE = dynamic_cast<AST::Variable*>(lhs.get());
-
-		if(!LHSE)
-			return CodeGeneration::LogErrorV("Destination of '=' must be a variable.");
-
-		llvm::Value* RVal = rhs->codegen();
-		if(!RVal)
-			return nullptr;
-
-		llvm::Value* Variable = nullptr;
-
-		if(!LHSE->isArrayElement && !LHSE->isArrayPointer && !LHSE->isTDArrayElement && !LHSE->isTDArrayPointer)
-			Variable = CodeGeneration::NamedValues[LHSE->name];
-		else
-		{
-			LHSE->structMemberStore = true;
-			Variable = LHSE->codegen();
-		}
-
-
-		if(!Variable)
-		{
-			return CodeGeneration::LogErrorV("Unknown variable name: " + LHSE->name + ".");
-		}
-
-		CodeGeneration::Builder->CreateStore(RVal, Variable);
-		return RVal;
-	}
 
 	int pureIntCount = 0;
 
@@ -289,6 +426,44 @@ llvm::Value* AST::Binary::codegen()
 		pureIntCount++;
 
 	llvm::Value* opLLVM = nullptr;
+
+	if(op == '=')
+	{
+		if(secondOp == '\0')
+		{
+			AST::Variable* LHSE = dynamic_cast<AST::Variable*>(lhs.get());
+
+			if(!LHSE)
+				return CodeGeneration::LogErrorV("Destination of '=' must be a variable.");
+
+			llvm::Value* RVal = R;
+			if(!RVal)
+			return nullptr;
+
+			llvm::Value* Variable = nullptr;
+
+			if(!LHSE->isArrayElement && !LHSE->isArrayPointer && !LHSE->isTDArrayElement && !LHSE->isTDArrayPointer)
+				Variable = CodeGeneration::NamedValues[LHSE->name];
+			else
+			{
+				LHSE->structMemberStore = true;
+				Variable = LHSE->codegen();
+			}
+
+
+			if(!Variable)
+			{
+				return CodeGeneration::LogErrorV("Unknown variable name: " + LHSE->name + ".");
+			}
+
+			CodeGeneration::Builder->CreateStore(RVal, Variable);
+			return RVal;
+		}
+		else if(secondOp == '=')
+		{
+			opLLVM = GetEqualsOperator(L, R, pureIntCount, (AST::Integer*)lhs.get());
+		}
+	}
 
 	if(!L || !R)
 	{
@@ -334,45 +509,10 @@ llvm::Value* AST::Binary::codegen()
 		}
 	}
 	else if(op == '<')
-	{
-		bool isFloat = L->getType()->isFloatTy();
-		bool isDouble = L->getType()->isDoubleTy();
-		bool isInt = L->getType()->isIntegerTy();
+		opLLVM = GetLessThanOperator(L, R, pureIntCount, (AST::Integer*)lhs.get());
+	else if(op == '>')
+		opLLVM = GetGreaterThanOperator(L, R, pureIntCount, (AST::Integer*)lhs.get());
 
-		if(pureIntCount == 2)
-		{
-			//std::cout << "Comparing two pure integers.\n";
-			L = CodeGeneration::Builder->CreateICmpULT(L, CodeGeneration::Builder->CreateIntCast(R, L->getType(), false, "castmp"), "cmptmp");
-		}
-		else
-		{
-			//std::cout << "Comparing floats or doubles.\n";
-			L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
-		}
-
-		if(isDouble)
-		{
-			//std::cout << "Compare type: Double\n";
-			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
-		}
-		else if(isFloat)
-		{
-			//std::cout << "Compare type: Float\n";
-			opLLVM = CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getFloatTy(*CodeGeneration::TheContext), "booltmp");
-		}
-		else if(isInt)
-		{
-			AST::Integer* LInt = (AST::Integer*)lhs.get();
-
-			//std::cout << "CodeGen Condition Integer...\n";
-
-			if(!LInt)
-				return CodeGeneration::LogErrorV("Invalid Variable Type. Expected Integer.");
-
-			//std::cout << "Compare type: Integer\n";
-			opLLVM = CodeGeneration::Builder->CreateIntCast(L, GetASTIntegerType(LInt), false, "booltmp");
-		}
-	}
 		//case '<':
 		//	L = CodeGeneration::Builder->CreateFCmpULT(L, R, "cmptmp");
 		//	return CodeGeneration::Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*CodeGeneration::TheContext), "booltmp");
@@ -412,7 +552,13 @@ llvm::Value* AST::Call::codegen()
 	std::vector<llvm::Value*> ArgsV;
 	for(unsigned i = 0, e = arguments.size(); i != e; ++i)
 	{
-		ArgsV.push_back(arguments[i]->codegen());
+		llvm::Value* argCG = arguments[i]->codegen();
+
+		if(!argCG)
+			return nullptr;
+
+		ArgsV.push_back(argCG);
+
 		if(!ArgsV.back())
 			return nullptr;
 	}
@@ -437,9 +583,11 @@ llvm::Function* AST::FunctionPrototype::codegen()
 		}
 		else if(dynamic_cast<Float*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
-		else if(dynamic_cast<Array*>(i.first.get()) != nullptr || dynamic_cast<Generic*>(i.first.get()) != nullptr)
+		else if(dynamic_cast<Array*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if(dynamic_cast<NestedArray*>(i.first.get()) != nullptr)
+			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+		else if(dynamic_cast<Generic*>(i.first.get()) != nullptr)
 			llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if(dynamic_cast<StructTy*>(type.get()) != nullptr)
 			{
@@ -631,16 +779,16 @@ llvm::Value* AST::If::codegen()
 	bool isFloat = ConditionV->getType()->isFloatTy();
 
 	if(isInt)
-	{
+	{	
 		ConditionV = CodeGeneration::Builder->CreateICmpNE(
 			ConditionV, 
-			llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(32, 0, false)), 
+			llvm::ConstantInt::get(ConditionV->getType(), 0), 
 			"ifcond");
 	}
 	else if(isDouble || isFloat)
 	{
 		//std::cout << "Condition is double or float!\n";
-
+	
 		ConditionV = CodeGeneration::Builder->CreateFCmpONE(
 			ConditionV, 
 			llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)), 
@@ -781,26 +929,26 @@ llvm::Value* AST::For::codegen()
 	if(isDouble || isFloat)
 	{
 		//std::cout << "Adding ConstantFP loop condition...\n";
-
+	
 		EndCond = CodeGeneration::Builder->CreateFCmpONE(
 			EndCond, llvm::ConstantFP::get(*CodeGeneration::TheContext, llvm::APFloat(0.0)), "loopcond");
-
+	
 		//std::cout << "ConstantFP loop condition added!\n";
 	}
 	else if(isInt)
 	{
 		//std::cout << "Adding ConstantInt loop condition...\n";
-
+	
 		Integer* getI = (Integer*)varType.get();
-
+	
 		llvm::IntegerType* ty = static_cast<llvm::IntegerType*>(TheFunction->getFunctionType()->getReturnType());
-
+	
 		if(ty == nullptr)
 			return CodeGeneration::LogErrorV("Function Type returned nullptr.");
-
+	
 		EndCond = CodeGeneration::Builder->CreateICmpNE(
-			EndCond, llvm::ConstantInt::get(*CodeGeneration::TheContext, llvm::APInt(ty->getBitWidth(), 0, false)), "loopcond");
-
+			EndCond, llvm::ConstantInt::get(EndCond->getType(), 0), "loopcond");
+	
 		//std::cout << "ConstantInt loop condition added!\n";
 	}
 	else
@@ -848,6 +996,22 @@ llvm::Value* AST::Unary::codegen()
 
 	if(!OperandV)
 		return nullptr;
+
+	if(OpCode == '-')
+	{
+		if(OperandV->getType()->isIntegerTy())
+		{
+			return CodeGeneration::Builder->CreateNUWSub(llvm::ConstantInt::get(OperandV->getType(), 0), OperandV, "subtmp");
+		}
+		else if(OperandV->getType()->isFloatTy() || OperandV->getType()->isDoubleTy())
+		{
+			return CodeGeneration::Builder->CreateFSub(llvm::ConstantFP::get(OperandV->getType(), 0), OperandV, "subtmp");
+		}
+		else
+		{
+			return CodeGeneration::LogErrorV("Unknown type for " + std::to_string(OpCode) + " unary.");
+		}
+	}
 
 	llvm::Function* F = CodeGeneration::GetFunction(std::string("unary") + OpCode);
 
@@ -933,6 +1097,12 @@ llvm::Value* AST::Var::codegen()
 
 				InitVal = llvm::ConstantStruct::get(getStruct->existingStruct);
 			}
+			else if(dynamic_cast<Generic*>(VarNames[i].type.get()))
+			{
+				InitVal = llvm::ConstantPointerNull::get(llvm::PointerType::get(*CodeGeneration::TheContext, 0));
+			}
+			else
+				return CodeGeneration::LogErrorV("Unknown variable type.");
 		}
 
 		llvm::AllocaInst* Alloca = nullptr;
@@ -1153,7 +1323,7 @@ llvm::Value* AST::NestedArrayContent::codegen()
 
 llvm::Type* AST::StructEx::codegen()
 {
-	std::cout << "StructEx CodeGen...\n";
+	//std::cout << "StructEx CodeGen...\n";
 	std::vector<llvm::Type*> v;
 
 	for(int i = 0; i < variables.size(); i++)

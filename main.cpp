@@ -56,7 +56,9 @@ void MainLoop()
 			//	ParseTesting::TopLevelExpression();
 			//	break;
 			default:
-				closeLoop = true;
+				Lexer::GetNextToken();
+				//std::cout << "Found " << Lexer::CurrentToken << ".\n Closing...\n";
+				//closeLoop = true;
 				break;
 		}
 	}
@@ -87,6 +89,7 @@ int main()
   Parser::BinaryOpPrecedence[';'] = 1;
   Parser::BinaryOpPrecedence['='] = 2;
 	Parser::BinaryOpPrecedence['<'] = 10;
+	Parser::BinaryOpPrecedence['>'] = 10;
 	Parser::BinaryOpPrecedence['+'] = 20;
 	Parser::BinaryOpPrecedence['-'] = 20;
 	Parser::BinaryOpPrecedence['*'] = 40;

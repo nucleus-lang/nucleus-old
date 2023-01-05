@@ -140,6 +140,7 @@ struct AST
 	struct Binary : public Expression
 	{
 		char op;
+		char secondOp = '\0';
 		std::unique_ptr<Expression> lhs, rhs;
 
 		Binary(SourceLocation Loc, char oper, std::unique_ptr<Expression> left,

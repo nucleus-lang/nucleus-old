@@ -1,32 +1,76 @@
+extern printint(i: int) -> int;
+# extern printstring(i: string) -> int;
+
+extern GetStdHandle(getHandle: GENERIC) -> GENERIC;
+extern WriteFile(console: GENERIC, content: string, size: int, bytesWritten: GENERIC, lpOverlapped: GENERIC) -> int;
+
+func unary!(v: int) -> int
+{
+	if(v) { 0; }
+	else { 1; }
+}
+
+func binary| 5 (LHS: int, RHS: int) -> int
+{
+	if(LHS)
+	{
+		1;
+	}
+	else if(RHS)
+	{
+		1;
+	}
+	else
+	{
+		0;
+	}
+}
+
+# func binary& 6 (LHS: double, RHS: double) -> double
+# {
+# 	if(!LHS)
+# 		{ 0; }
+# 	else
+# 		{ !!RHS; }
+# }
+
 struct STDHandle
 {
 	var WindowsHND: int;
 	var LinuxHND: string;
 };
 
-extern Win32GetStdHandle(getHandle: GENERIC) -> GENERIC;
-extern Win32WriteFile(console: GENERIC, content: string) -> int;
+func StringLength(content: string) -> int
+{
+	var length: int = 0;
 
-func print(getContent: string) -> int
+	for(i: int = 0; content[i] > 0)
+	{
+		length = length + 1;
+	}
+
+	length;
+}
+
+func Print(getContent: string) -> int
 {
 	var test: STDHandle;
-	test.WindowsHND = 0 - 11;
+	test.WindowsHND = -11;
 
-	var GetHandle: GENERIC = Win32GetStdHandle(test.WindowsHND);
+	var GetHandle: GENERIC = GetStdHandle(test.WindowsHND);
 
-	Win32WriteFile(GetHandle, getContent);
+	ptr bytesWritten: GENERIC;
+	ptr lpOverlapped: GENERIC;
+	WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
 
 	0;
 }
 
 func main() -> int
 {
-	# var test: STDHandle;
-	# test.WindowsHND = 0 - 11;
+	Print("Hello World!");
 
-	# var GetHandle: GENERIC = Win32GetStdHandle(test.WindowsHND);
-
-	# Win32WriteFile(GetHandle, "Hello World!");
+	# PrintInt(1);
 
 	0;
 }
