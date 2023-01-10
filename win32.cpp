@@ -4,6 +4,7 @@
 #define DLLEXPORT
 #endif
 
+#include <iostream>
 #include <Windows.h>
 
 //extern "C" DLLEXPORT HANDLE Win32GetStdHandle(int getHandle)

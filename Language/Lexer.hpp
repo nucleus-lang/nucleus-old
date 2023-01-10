@@ -58,6 +58,8 @@ enum Token
   TK_Struct = -27,
 
   TK_GenericPointer = -28,
+
+  TK_Import = -29,
 };
 
 struct SourceLocation
@@ -68,6 +70,7 @@ struct SourceLocation
 
 struct Lexer
 {
+    static std::string EntireScriptContent;
     static std::string IdentifierStr; // Filled in if TK_Identifier
     static std::string NumValString;  // Filled in if TK_Number
     static char CharVal;              // Filled in if TK_Char
@@ -76,9 +79,19 @@ struct Lexer
     static SourceLocation CurrentLocation;
     static SourceLocation LexerLocation;
 
+    static std::string GetSavedString;
+    static bool RecordString;
+
+    static int LastECChar;
+
     static int Advance()
     {
-      int LastChar = getchar();
+      if(RecordString)
+        GetSavedString += EntireScriptContent[LastECChar];
+
+      LastECChar++;
+
+      int LastChar = EntireScriptContent[LastECChar];
 
       if(LastChar == '\n' || LastChar == '\r')
       {
@@ -94,6 +107,46 @@ struct Lexer
     }
 
     static int CurrentToken;
+
+    static void StartStringRecording()
+    {
+      RecordString = true;
+    }
+
+    static std::string FinishStringRecording()
+    {
+      RecordString = false;
+      std::string finalStr = GetSavedString;
+      GetSavedString = "";
+      return finalStr;
+    }
+
+    static void AddToStringRecording(std::string s)
+    {
+      if(RecordString)
+          GetSavedString += s;
+    }
+
+    static void Reset()
+    {
+      IdentifierStr = "";
+      NumValString = "";
+      CharVal = '\0';
+      StringString = "";
+
+      CurrentToken = ' ';
+
+      CurrentLocation.Line = 0;
+      CurrentLocation.Column = 0;
+
+      LexerLocation.Line = 0;
+      LexerLocation.Column = 0;
+
+      EntireScriptContent = "";
+
+      LastECChar = 0;
+    }
+
     static int GetNextToken()
     {
       CurrentToken = GetToken();
@@ -112,20 +165,32 @@ struct Lexer
     
       if (isalpha(LastChar) || LastChar == '_') { // identifier: [a-zA-Z][a-zA-Z0-9]*
         IdentifierStr = LastChar;
+
         while (isalnum((LastChar = Advance())))
           IdentifierStr += LastChar;
     
         if (IdentifierStr == "func")
           return Token::TK_Define;
         if (IdentifierStr == "extern")
+        {
           return Token::TK_Extern;
+        }
 
         if(IdentifierStr == "int")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Integer;
+        }
         if(IdentifierStr == "double")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Double;
+        }
         if(IdentifierStr == "float")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Float;
+        }
 
         if(IdentifierStr == "if")
           return Token::TK_If;
@@ -138,25 +203,49 @@ struct Lexer
           return Token::TK_For;
 
         if(IdentifierStr == "var")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Var;
+        }
         if(IdentifierStr == "ptr")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Ptr;
+        }
 
         if(IdentifierStr == "binary")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Binary;
+        }
         if(IdentifierStr == "unary")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Unary;
+        }
 
         if(IdentifierStr == "char")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Char;
+        }
         if(IdentifierStr == "string")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_String;
+        }
 
         if(IdentifierStr == "bool")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_Bool;
+        }
 
         if(IdentifierStr == "GENERIC")
+        {
+          //AddToStringRecording(IdentifierStr);
           return Token::TK_GenericPointer;
+        }
 
         if(IdentifierStr == "true")
           return Token::TK_True;
@@ -166,18 +255,24 @@ struct Lexer
         if(IdentifierStr == "struct")
           return Token::TK_Struct;
 
+        if(IdentifierStr == "import")
+          return Token::TK_Import;
+
+        //AddToStringRecording(IdentifierStr);
         return Token::TK_Identifier;
       }
 
       if(LastChar == ';')
       {
         LastChar = Advance();
+        //Lexer::AddToStringRecording(";");
         return Token::TK_DotComma;
       }
 
       if(LastChar == ',')
       {
         LastChar = Advance();
+        //Lexer::AddToStringRecording(",");
         return Token::TK_Comma;
       }
 

@@ -30,6 +30,12 @@ struct AST
 		{
 			return out << ":" << GetLine() << ":" << GetColumn() << '\n';
 		}
+
+		template< class T >
+    	std::unique_ptr<T> copy_unique()
+    	{
+    	    return this ? std::make_unique<T>(*this) : nullptr;
+    	}
 	};
 
 	struct Number : public Expression
@@ -124,6 +130,8 @@ struct AST
 
 		bool structMemberStore = false;
 
+		SourceLocation Location;
+
 		std::unique_ptr<Expression> TDArrayIndex;
 		std::unique_ptr<Expression> arrayIndex;
 
@@ -189,6 +197,7 @@ struct AST
 		bool IsOperator;
 		unsigned Precedence;
 		int Line;
+		SourceLocation Location;
 
 		FunctionPrototype(SourceLocation Loc, std::unique_ptr<Expression> t, const std::string& n, std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> args, bool IsOperator = false, unsigned Prec = 0)
 		: type(std::move(t)), name(n), arguments(std::move(args)), IsOperator(IsOperator), Precedence(Prec), Line(Loc.Line) {}

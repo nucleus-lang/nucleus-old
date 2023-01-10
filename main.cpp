@@ -2,23 +2,32 @@
 #include "Language/Lexer.hpp"
 #include "Language/AbstractSyntaxTree.hpp"
 #include "Language/Parser.hpp"
+#include <fstream>
+#include <filesystem>
 
 int Lexer::CurrentToken;
 std::string Lexer::IdentifierStr;
 std::string Lexer::NumValString;
 char Lexer::CharVal;
 std::string Lexer::StringString;
+std::string Lexer::EntireScriptContent;
+int Lexer::LastECChar = -1;
+std::string Lexer::GetSavedString = "";
+bool Lexer::RecordString = false;
 
 std::map<char, int> Parser::BinaryOpPrecedence;
 AST::Array* Parser::lastArray = nullptr;
 AST::NestedArray* Parser::lastNestedArray = nullptr;
 unsigned int Parser::bracketCount = 0;
 std::vector<std::string> Parser::localArrayNames, Parser::localNestedArrayNames;
+std::string Parser::globalAutoExterns;
 
 std::vector<std::pair<std::string, std::string>> Parser::localStructVariables;
 
 std::string Parser::currentIdentifierString;
 bool Parser::dotCommaAsOperator = true, Parser::beginNestedArray = false, Parser::endNestedArray = true, Parser::disableOperators = false;
+
+std::vector<std::unique_ptr<AST::Function>> ParseTesting::allParsedFunctions;
 
 std::vector<std::unique_ptr<AST::StructEx>> Parser::AllStructs;
 
@@ -34,6 +43,8 @@ void MainLoop()
 		switch(Lexer::CurrentToken)
 		{
 			case Token::TK_EndOfFile:
+				//std::cout << "Found " << Lexer::CurrentToken << ".\n Closing...\n";
+				Lexer::CurrentToken = 0;
 				closeLoop = true;
 				break;
 			case Token::TK_Define:
@@ -57,7 +68,9 @@ void MainLoop()
 			//	break;
 			default:
 				Lexer::GetNextToken();
-				//std::cout << "Found " << Lexer::CurrentToken << ".\n Closing...\n";
+
+				//if(Lexer::CurrentToken != 0)
+				//	std::cout << "Found " << Lexer::CurrentToken << ".\n Continue...\n";
 				//closeLoop = true;
 				break;
 		}
@@ -80,7 +93,7 @@ extern "C" DLLEXPORT double printd(double X) {
   return 0;
 }
 
-int main()
+int main(int argc, const char* argv[])
 {
 	llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -101,7 +114,28 @@ int main()
 
 	CodeGeneration::Initialize();
 
+	Lexer::EntireScriptContent = "extern ";
+
+	std::string path = std::filesystem::current_path().u8string();
+
+   for (const auto & entry : std::filesystem::directory_iterator(path))
+   {
+   		if(entry.path().u8string().find(".nk") != std::string::npos)
+   		{
+      	std::ifstream ifs(entry.path().u8string().c_str());
+  			std::string content( (std::istreambuf_iterator<char>(ifs) ),
+                       			(std::istreambuf_iterator<char>()    ) );
+
+  			Lexer::EntireScriptContent += content;
+  			Lexer::EntireScriptContent += "\n";
+   		}
+   }
+
+  //std::cout << Lexer::EntireScriptContent << "\n";
+
 	MainLoop();
+
+	ParseTesting::CompileFunctions();
 
 	CodeGeneration::CompileToObjectCode();
 

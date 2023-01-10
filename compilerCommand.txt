@@ -1,1 +1,1 @@
-/d/msys64/mingw64/bin/clang++ -g -O3 Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `/d/msys64/mingw64/bin/llvm-config --cxxflags --link-static --ldflags --system-libs --libs all` -fstack-protector -lssp -frtti -static -o nucleus
+/d/msys64/mingw64/bin/clang++ -g -O3 Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `/d/msys64/mingw64/bin/llvm-config --cxxflags --link-static --ldflags --system-libs --libs all` -fstack-protector -lssp -frtti -std=c++17 -static -o nucleus

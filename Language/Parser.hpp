@@ -17,6 +17,8 @@ struct Parser
 	static unsigned int bracketCount;
 	static bool dotCommaAsOperator, beginNestedArray, endNestedArray, disableOperators;
 
+	static std::string globalAutoExterns;
+
 	static std::vector<std::unique_ptr<AST::StructEx>> AllStructs;
 
 	template<typename TO, typename FROM>
@@ -191,6 +193,8 @@ struct Parser
 
 		if(Lexer::CurrentToken == '<')
 		{
+			//std::cout << "< found!\n";
+
 			for(auto i : localNestedArrayNames)
 			{
 				if(i == idName)
@@ -203,8 +207,8 @@ struct Parser
 					//std::cout << "Parsing Nested Array Index...\n";
 		
 					Lexer::GetNextToken();
-		
-					Ind = ParseExpression();
+
+					Ind = ParseUnary();
 		
 					if(!Ind)
 						return nullptr;
@@ -215,10 +219,14 @@ struct Parser
 						return LogError("Expected '>' to close two-dimensional array item. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 		
 					Lexer::GetNextToken();
+
+					//std::cout << "Parsed NestedArray.\n";
 		
 					return nestedArray;
 				}
 			}
+
+			//std::cout << "Local Nested Array '" << idName << "' not found...\n";
 		}
 		if(Lexer::CurrentToken == '[')
 		{
@@ -573,7 +581,7 @@ struct Parser
 		Lexer::CurrentToken == Token::TK_GenericPointer;
 	}
 
-	static std::unique_ptr<AST::FunctionPrototype> ParsePrototype()
+	static std::unique_ptr<AST::FunctionPrototype> ParsePrototype(bool isFunction = false)
 	{
 		//Lexer::GetNextToken();
 
@@ -585,9 +593,17 @@ struct Parser
 
 		std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> ArgumentNames;
 
+		std::string saveToAutoExtern;
+
+		if(isFunction)
+			Lexer::StartStringRecording();
+
 		if(Lexer::CurrentToken == Token::TK_Identifier)
 		{
 			FunctionName = Lexer::IdentifierStr;
+
+			Lexer::AddToStringRecording(FunctionName);
+
 			Kind = 0;
 			Lexer::GetNextToken();
 
@@ -604,6 +620,8 @@ struct Parser
 			FunctionName = "unary";
 			FunctionName += (char)Lexer::CurrentToken;
 
+			Lexer::AddToStringRecording(FunctionName);
+
 			Kind = 1;
 			Lexer::GetNextToken();
 		}
@@ -617,6 +635,8 @@ struct Parser
 			FunctionName = "binary";
 			FunctionName += (char)Lexer::CurrentToken;
 			Kind = 2;
+
+			Lexer::AddToStringRecording(FunctionName);
 
 			Lexer::GetNextToken();
 
@@ -644,7 +664,7 @@ struct Parser
 		}
 		else
 		{
-			return LogErrorP("Expected function name in prototype");
+			return LogErrorP("Expected function name in prototype. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 		}
 
 		if(Lexer::CurrentToken != '(')
@@ -652,13 +672,16 @@ struct Parser
 
 		Lexer::GetNextToken();
 		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType()
-			|| Lexer::CurrentToken == '[' || Lexer::CurrentToken == ']' || Lexer::CurrentToken == '<')
+			|| Lexer::CurrentToken == '[' || Lexer::CurrentToken == ']' || Lexer::CurrentToken == '<' || Lexer::CurrentToken == '>')
 		{
 			Lexer::GetNextToken();
 
 			SourceLocation VarLoc = Lexer::CurrentLocation;
 
 			currentIdentifierString = Lexer::IdentifierStr;
+
+			//Lexer::AddToStringRecording(currentIdentifierString);
+
 			auto VarName = std::make_unique<AST::Variable>(VarLoc, Lexer::IdentifierStr);
 
 			if(Lexer::CurrentToken != ':')
@@ -704,10 +727,34 @@ struct Parser
 		if(!FnType)
 			return LogErrorP("Expected function type.");
 
+		if(isFunction)
+		{
+			saveToAutoExtern = "extern ";
+			saveToAutoExtern += Lexer::FinishStringRecording();
+
+			saveToAutoExtern.pop_back();
+			saveToAutoExtern.pop_back();
+
+			saveToAutoExtern += ";\n";
+
+			//std::cout << saveToAutoExtern;
+
+			Parser::globalAutoExterns += saveToAutoExtern;
+		}
+
 		if(Kind && ArgumentNames.size() != Kind)
 			return LogErrorP("Invalid number of operands for operator.");
 
-		return std::make_unique<AST::FunctionPrototype>(FnLoc, std::move(FnType), FunctionName, std::move(ArgumentNames), Kind != 0, BinaryPrecedence);
+		auto f = std::make_unique<AST::FunctionPrototype>(FnLoc, std::move(FnType), FunctionName, std::move(ArgumentNames), Kind != 0, BinaryPrecedence);
+
+		if(isFunction)
+		{
+			f->codegen();
+
+			//AST::FunctionProtos[f->Name()] = std::move(f);
+		}
+
+		return f;
 	}
 
 	static std::unique_ptr<AST::Expression> ParseFunctionType()
@@ -890,7 +937,7 @@ struct Parser
 
 		Lexer::GetNextToken();
 
-		auto Proto = ParsePrototype();
+		auto Proto = ParsePrototype(true);
 		if(!Proto) 
 			return nullptr;
 
@@ -1354,18 +1401,22 @@ struct Parser
 
 struct ParseTesting
 {
+	static std::vector<std::unique_ptr<AST::Function>> allParsedFunctions;
+
 	static void Definition()
 	{
 		if(auto FnAST = Parser::ParseDefinition())
 		{
 			//std::cout << "Handling Definition...\n";
 
-			if(auto *FnIR = FnAST->codegen())
-			{
+			allParsedFunctions.push_back(std::move(FnAST));
+
+			//if(auto *FnIR = FnAST->codegen())
+			//{
 				//fprintf(stderr, "Parsed a function definition:\n\n");
 				//FnIR->print(llvm::errs());
 				//fprintf(stderr, "\n");
-			}
+			//}
 
 			//std::cout << "Finished Definition...\n";
 		}
@@ -1429,6 +1480,14 @@ struct ParseTesting
 		}
 		else
 			Lexer::GetNextToken();
+	}
+
+	static void CompileFunctions()
+	{
+		for(int i = 0; i < allParsedFunctions.size(); i++)
+		{
+			auto *FnIR = allParsedFunctions[i]->codegen();
+		}
 	}
 };
 

@@ -49,7 +49,7 @@ func StringLength(content: string) -> int
 		length = length + 1;
 	}
 
-	length;
+	length - 1;
 }
 
 func Print(getContent: string) -> int
@@ -61,16 +61,24 @@ func Print(getContent: string) -> int
 
 	ptr bytesWritten: GENERIC;
 	ptr lpOverlapped: GENERIC;
+	
 	WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
 
 	0;
 }
 
-func main() -> int
+func main(argc: int, argv: <string>) -> int
 {
-	Print("Hello World!");
 
-	# PrintInt(1);
+	for(i: int = 0; i < argc - 1; 1)
+	{
+		Print(argv<i>);
+		Print(" | ");
+	}
+
+	printint(argc);
+
+	printint(GetNumberFive());
 
 	0;
 }
