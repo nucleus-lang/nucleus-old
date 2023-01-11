@@ -6,6 +6,7 @@
 #include "CodeGeneration.hpp"
 #include "Parser.hpp"
 #include "AbstractSyntaxTree.hpp"
+#include "NucleusToml.hpp"
 
 std::unique_ptr<llvm::LLVMContext> CodeGeneration::TheContext;
 std::unique_ptr<llvm::IRBuilder<>> CodeGeneration::Builder;
@@ -212,7 +213,24 @@ void CodeGeneration::CompileToObjectCode()
 
 	DBuilder->finalize();
 
-	TheModule->print(llvm::errs(), nullptr);
+	std::error_code EC;
+	llvm::raw_fd_ostream dest("output.ll", EC, llvm::sys::fs::OF_None);
+
+	TheModule->print(dest, nullptr);
+
+	std::string includes = "";
+	std::string clangCmd = "";
+
+	for(auto i : NucleusTOML::CPPIncludes)
+	{
+		includes += i + " ";
+	}
+
+	clangCmd = "clang++ " + includes + "output.ll -o result";
+
+	std::cout << "Compiling...\n";
+
+	system(clangCmd.c_str());
 }
 
 llvm::DIType* CodeGeneration::DebugInfo::getDoubleTy()

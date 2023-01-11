@@ -36,6 +36,7 @@ SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};
 
 std::vector<std::string> NucleusTOML::folders;
+std::vector<std::string> NucleusTOML::CPPIncludes;
 
 void MainLoop()
 {

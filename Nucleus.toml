@@ -8,7 +8,13 @@ version = "0.1.0"
 
 # Import other folders from here.
 # Adding "*" means that its recursive.
+
 [imports]
 folders = [
 	"Nucleus.System"
+]
+
+[imports.cpp]
+include = [
+	"Nucleus/System/OS/WinAPI.cpp"
 ]

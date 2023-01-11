@@ -8,6 +8,7 @@
 struct NucleusTOML
 {
 	static std::vector<std::string> folders;
+	static std::vector<std::string> CPPIncludes;
 
 	static int Read(std::string path)
 	{
@@ -39,6 +40,22 @@ struct NucleusTOML
     	        	//std::cout << "New Imported Folder: " << s << "\n";
 
     	            folders.push_back(s);
+    	        }
+    	    });
+    	}
+
+    	auto cppincludes = tbl["imports.cpp"]["include"];
+
+    	if (toml::array* arr = cppincludes.as_array())
+    	{
+    	    // visitation with for_each() helps deal with heterogeneous data
+    	    arr->for_each([](auto&& el)
+    	    {
+    	        if constexpr (toml::is_string<decltype(el)>)
+    	        {
+    	        	std::string s = el.get();
+
+    	            CPPIncludes.push_back(s);
     	        }
     	    });
     	}
