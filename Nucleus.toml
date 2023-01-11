@@ -1,0 +1,14 @@
+# Project properties.
+[project]
+name = "Nucleus"
+version = "0.1.0"
+
+# Add dependencies here.
+[dependencies]
+
+# Import other folders from here.
+# Adding "*" means that its recursive.
+[imports]
+folders = [
+	"Nucleus.System"
+]

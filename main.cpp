@@ -4,6 +4,7 @@
 #include "Language/Parser.hpp"
 #include <fstream>
 #include <filesystem>
+#include "Language/NucleusToml.hpp"
 
 int Lexer::CurrentToken;
 std::string Lexer::IdentifierStr;
@@ -33,6 +34,8 @@ std::vector<std::unique_ptr<AST::StructEx>> Parser::AllStructs;
 
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};
+
+std::vector<std::string> NucleusTOML::folders;
 
 void MainLoop()
 {
@@ -114,7 +117,25 @@ int main(int argc, const char* argv[])
 
 	CodeGeneration::Initialize();
 
+	NucleusTOML::Read("Nucleus.toml");
+
 	Lexer::EntireScriptContent = "extern ";
+
+	for(auto i : NucleusTOML::folders)
+	{
+		for (const auto & entry : std::filesystem::directory_iterator(i))
+	 	{
+	 			if(entry.path().u8string().find(".nk") != std::string::npos)
+	 			{
+	 	   	std::ifstream ifs(entry.path().u8string().c_str());
+					std::string content( (std::istreambuf_iterator<char>(ifs) ),
+	 	                    			(std::istreambuf_iterator<char>()    ) );
+	
+					Lexer::EntireScriptContent += content;
+					Lexer::EntireScriptContent += "\n";
+	 			}
+	 	}
+	}
 
 	std::string path = std::filesystem::current_path().u8string();
 

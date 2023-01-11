@@ -1,4 +1,0 @@
-func GetNumberFive() -> int
-{
-	5;
-}

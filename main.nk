@@ -1,9 +1,6 @@
 extern printint(i: int) -> int;
 # extern printstring(i: string) -> int;
 
-extern GetStdHandle(getHandle: GENERIC) -> GENERIC;
-extern WriteFile(console: GENERIC, content: string, size: int, bytesWritten: GENERIC, lpOverlapped: GENERIC) -> int;
-
 func unary!(v: int) -> int
 {
 	if(v) { 0; }
@@ -34,39 +31,6 @@ func binary| 5 (LHS: int, RHS: int) -> int
 # 		{ !!RHS; }
 # }
 
-struct STDHandle
-{
-	var WindowsHND: int;
-	var LinuxHND: string;
-};
-
-func StringLength(content: string) -> int
-{
-	var length: int = 0;
-
-	for(i: int = 0; content[i] > 0)
-	{
-		length = length + 1;
-	}
-
-	length - 1;
-}
-
-func Print(getContent: string) -> int
-{
-	var test: STDHandle;
-	test.WindowsHND = -11;
-
-	var GetHandle: GENERIC = GetStdHandle(test.WindowsHND);
-
-	ptr bytesWritten: GENERIC;
-	ptr lpOverlapped: GENERIC;
-	
-	WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
-
-	0;
-}
-
 func main(argc: int, argv: <string>) -> int
 {
 
@@ -75,10 +39,6 @@ func main(argc: int, argv: <string>) -> int
 		Print(argv<i>);
 		Print(" | ");
 	}
-
-	printint(argc);
-
-	printint(GetNumberFive());
 
 	0;
 }
