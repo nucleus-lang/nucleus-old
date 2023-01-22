@@ -60,6 +60,8 @@ enum Token
   TK_GenericPointer = -28,
 
   TK_Import = -29,
+
+  TK_Shelf = -30,
 };
 
 struct SourceLocation
@@ -163,7 +165,7 @@ struct Lexer
 
       CurrentLocation = LexerLocation;
     
-      if (isalpha(LastChar) || LastChar == '_') { // identifier: [a-zA-Z][a-zA-Z0-9]*
+      if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
         IdentifierStr = LastChar;
 
         while (isalnum((LastChar = Advance())))
@@ -257,6 +259,9 @@ struct Lexer
 
         if(IdentifierStr == "import")
           return Token::TK_Import;
+
+        if(IdentifierStr == "shelf")
+          return Token::TK_Shelf;
 
         //AddToStringRecording(IdentifierStr);
         return Token::TK_Identifier;
@@ -362,6 +367,13 @@ struct Lexer
       // Otherwise, just return the character as its ascii value.
       int ThisChar = LastChar;
       LastChar = Advance();
+
+      if(ThisChar < 0)
+      {
+        //std::cout << "Be careful! ThisChar returned less than 0!";
+        ThisChar = 0;
+      }
+
       return ThisChar;
     }
 };

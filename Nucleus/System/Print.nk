@@ -1,35 +1,38 @@
 extern GetStdHandle(getHandle: GENERIC) -> GENERIC;
 extern WriteFile(console: GENERIC, content: string, size: int, bytesWritten: GENERIC, lpOverlapped: GENERIC) -> int;
 
-struct STDHandle
-{
-	var WindowsHND: int;
-	var LinuxHND: string;
-};
-
-func StringLength(content: string) -> int
-{
-	var length: int = 0;
-
-	for(i: int = 0; content[i] > 0)
+shelf System
+[
+	struct STDHandle
 	{
-		length = length + 1;
+		var WindowsHND: int;
+		var LinuxHND: string;
+	};
+
+	func StringLength(content: string) -> int
+	{
+		var length: int = 0;
+	
+		for(i: int = 0; content[i] > 0)
+		{
+			length = length + 1;
+		}
+	
+		length - 1;
 	}
 
-	length - 1;
-}
-
-func Print(getContent: string) -> int
-{
-	var test: STDHandle;
-	test.WindowsHND = -11;
-
-	var GetHandle: GENERIC = GetStdHandle(test.WindowsHND);
-
-	ptr bytesWritten: GENERIC;
-	ptr lpOverlapped: GENERIC;
+	func Print(getContent: string) -> int
+	{
+		var test: STDHandle;
+		test.WindowsHND = -11;
 	
-	WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
+		var GetHandle: GENERIC = GetStdHandle(test.WindowsHND);
+	
+		ptr bytesWritten: GENERIC;
+		ptr lpOverlapped: GENERIC;
 
-	0;
-}
+		# WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
+	
+		0;
+	}
+]

@@ -12,8 +12,6 @@ struct NucleusTOML
 
 	static int Read(std::string path)
 	{
-		folders.clear();
-
 		toml::parse_result result = toml::parse_file(path.c_str());
     	if (!result)
     	{

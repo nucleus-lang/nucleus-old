@@ -32,6 +32,8 @@ std::vector<std::unique_ptr<AST::Function>> ParseTesting::allParsedFunctions;
 
 std::vector<std::unique_ptr<AST::StructEx>> Parser::AllStructs;
 
+std::vector<ParsedShelf> Parser::AllShelfs;
+
 SourceLocation Lexer::CurrentLocation;
 SourceLocation Lexer::LexerLocation = {1, 0};
 
@@ -44,40 +46,46 @@ void MainLoop()
 	while(!closeLoop)
 	{
 		//fprintf(stderr, "nucleus> ");
-		switch(Lexer::CurrentToken)
-		{
-			case Token::TK_EndOfFile:
-				//std::cout << "Found " << Lexer::CurrentToken << ".\n Closing...\n";
+			if(Lexer::CurrentToken == Token::TK_EndOfFile)
+			{
 				Lexer::CurrentToken = 0;
 				closeLoop = true;
 				break;
-			case Token::TK_Define:
-				//std::cout << "Looking for Function...\n";
+			}
+			else if(Lexer::CurrentToken == Token::TK_Shelf)
+			{
+				ParseTesting::Shelf();
+				Lexer::GetNextToken();
+			}
+			else if(Lexer::CurrentToken == Token::TK_Define)
+			{
+				std::cout << "Looking for Function...\n";
 				ParseTesting::Definition();
 				Lexer::GetNextToken();
-				break;
-			case Token::TK_Extern:
+			}
+			else if(Lexer::CurrentToken == Token::TK_Extern)
+			{
 				//std::cout << "Looking for Extern...\n";
 				ParseTesting::Extern();
 				Lexer::GetNextToken();
-				break;
-			case Token::TK_Struct:
-				//std::cout << "Looking for Extern...\n";
+			}
+			else if(Lexer::CurrentToken == Token::TK_Struct)
+			{
+				std::cout << "Looking for Struct...\n";
 				ParseTesting::Struct();
 				Lexer::GetNextToken();
-				break;
-			//default:
-			//	std::cout << "Looking for Top Level Expression...\n";
-			//	ParseTesting::TopLevelExpression();
-			//	break;
-			default:
-				Lexer::GetNextToken();
+			}
+			else if(Lexer::CurrentToken == ']')
+			{
+				if(Parser::AllShelfs.size() - 1 >= 0)
+					Parser::AllShelfs.pop_back();
 
-				//if(Lexer::CurrentToken != 0)
-				//	std::cout << "Found " << Lexer::CurrentToken << ".\n Continue...\n";
-				//closeLoop = true;
-				break;
-		}
+				Lexer::GetNextToken();
+			}
+			else
+			{
+				Lexer::GetNextToken();
+			}
 	}
 }
 
@@ -126,6 +134,11 @@ int main(int argc, const char* argv[])
 	{
 		for (const auto & entry : std::filesystem::directory_iterator(i))
 	 	{
+	 			if(entry.path().u8string().find(".toml") != std::string::npos)
+	 			{
+	 					NucleusTOML::Read(entry.path().u8string());
+	 			}
+
 	 			if(entry.path().u8string().find(".nk") != std::string::npos)
 	 			{
 	 	   	std::ifstream ifs(entry.path().u8string().c_str());

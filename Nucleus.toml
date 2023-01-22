@@ -13,8 +13,3 @@ version = "0.1.0"
 folders = [
 	"Nucleus.System"
 ]
-
-[imports.cpp]
-include = [
-	"Nucleus/System/OS/WinAPI.cpp"
-]

@@ -31,14 +31,25 @@ func binary| 5 (LHS: int, RHS: int) -> int
 # 		{ !!RHS; }
 # }
 
-func main(argc: int, argv: <string>) -> int
-{
-
-	for(i: int = 0; i < argc - 1; 1)
+shelf Testing
+[
+	func ImStuff() -> int
 	{
-		Print(argv<i>);
-		Print(" | ");
+		1;
 	}
 
+	func SummonImStuff() -> int
+	{
+		ImStuff();
+	}
+]
+
+func main(argc: int, argv: <string>) -> int
+{
+	for(i: int = 0; i < argc - 1; Testing.SummonImStuff())
+	{
+		System.Print(argv<i>);
+		System.Print(" | ");
+	}
 	0;
 }

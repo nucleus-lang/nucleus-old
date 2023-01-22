@@ -5,6 +5,14 @@
 #include <memory>
 #include <string>
 
+static void PushBackParsedFunction(std::unique_ptr<AST::Function> FnAST);
+
+struct ParsedShelf
+{
+	std::string name;
+	std::vector<std::string> locals;
+};
+
 struct Parser
 {
 	static AST::Array* lastArray;
@@ -20,6 +28,44 @@ struct Parser
 	static std::string globalAutoExterns;
 
 	static std::vector<std::unique_ptr<AST::StructEx>> AllStructs;
+
+	static std::vector<ParsedShelf> AllShelfs;
+
+	static std::string GetShelfPath()
+	{
+		std::string result = "";
+		for(auto i : AllShelfs)
+		{
+			result += i.name + ".";
+		}
+
+		return result;
+	}
+
+	static std::string GetIdentifier(std::string name)
+	{
+		std::string path;
+		for(auto i : AllShelfs)
+		{
+			std::string lookingFor = path + i.name + "." + name;
+
+			for(auto j : i.locals)
+			{
+				if(lookingFor == j)
+				{
+					return lookingFor;
+				}
+				else
+				{
+					//std::cout << lookingFor << " does not match with " << j << "\n";
+				}
+			}
+
+			path += i.name + ".";
+		}
+
+		return name;
+	}
 
 	template<typename TO, typename FROM>
 	static std::unique_ptr<TO> static_unique_pointer_cast (std::unique_ptr<FROM>&& old)
@@ -127,9 +173,9 @@ struct Parser
 		return newV;
 	}
 
-	static std::unique_ptr<AST::Expression> ParseIdentifier(bool recursiveAnalysis = false)
+	static std::unique_ptr<AST::Expression> ParseIdentifier(std::string currId = "")
 	{
-		std::string idName = Lexer::IdentifierStr;
+		std::string idName = GetIdentifier(currId + Lexer::IdentifierStr);
 
 		//std::cout << "Identifier Str: " << idName << "\n";
 
@@ -189,6 +235,9 @@ struct Parser
 					}
 				}
 			}
+
+			Lexer::GetNextToken();
+			return ParseIdentifier(idName + ".");
 		}
 
 		if(Lexer::CurrentToken == '<')
@@ -600,7 +649,10 @@ struct Parser
 
 		if(Lexer::CurrentToken == Token::TK_Identifier)
 		{
-			FunctionName = Lexer::IdentifierStr;
+			FunctionName = GetShelfPath() + Lexer::IdentifierStr;
+
+			if(AllShelfs.size() != 0)
+				AllShelfs.back().locals.push_back(FunctionName);
 
 			Lexer::AddToStringRecording(FunctionName);
 
@@ -662,13 +714,17 @@ struct Parser
 				Lexer::GetNextToken();
 			}
 		}
+		else if(Lexer::CurrentToken == 0)
+		{
+			return nullptr;
+		}
 		else
 		{
 			return LogErrorP("Expected function name in prototype. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 		}
 
 		if(Lexer::CurrentToken != '(')
-			return LogErrorP("Expected '(' in function prototype");
+			return LogErrorP("Expected '(' in function prototype. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
 
 		Lexer::GetNextToken();
 		while(Lexer::CurrentToken == Token::TK_Identifier || Lexer::CurrentToken == Token::TK_Comma || IsTokenABasicType()
@@ -1332,6 +1388,8 @@ struct Parser
 
 		if(!isInStruct)
 		{
+			//std::cout << "Is not in struct!\n";
+
 			Body = ParseExpression();
 			if(!Body)
 				return nullptr;
@@ -1346,6 +1404,9 @@ struct Parser
 
 		std::string Name = Lexer::IdentifierStr;
 		currentIdentifierString = Name;
+
+		if(AllShelfs.size() != 0)
+			AllShelfs.back().locals.push_back(GetShelfPath() + Name);
 
 		Lexer::GetNextToken();
 
@@ -1397,83 +1458,143 @@ struct Parser
 
 		return std::make_unique<AST::StructEx>(Name, std::move(variables));
 	}
+
+	static std::unique_ptr<AST::Expression> ParseShelf()
+	{
+		Lexer::GetNextToken();
+
+		std::string shName = Lexer::IdentifierStr;
+
+		Lexer::GetNextToken();
+
+		if(Lexer::CurrentToken != '[')
+			return LogError("Expected '[' at beginning of shelf. Current Token: " + std::to_string(Lexer::CurrentToken) + ".");
+
+		//Lexer::GetNextToken();
+
+		ParsedShelf p;
+		p.name = shName;
+
+		AllShelfs.push_back(p);
+
+		//MainLoop(']');
+
+		return nullptr;
+	}
+
+	static void MainLoop(int tokenEnd)
+	{
+		while(Lexer::CurrentToken != tokenEnd)
+		{
+			if(Lexer::CurrentToken == tokenEnd)
+				break;
+	
+			//fprintf(stderr, "nucleus> ");
+			switch(Lexer::CurrentToken)
+			{
+				case Token::TK_Shelf:
+					ParseShelf();
+					break;
+	
+				case Token::TK_Define:
+
+					//std::cout << "Function Found!\n";
+
+					if(auto FnAST = Parser::ParseDefinition())
+					{
+						PushBackParsedFunction(std::move(FnAST));
+					}
+					else
+						Lexer::GetNextToken();
+
+					//std::cout << "Finished Function!\n";
+					break;
+	
+				case Token::TK_Extern:
+					if(auto ProtoAST = Parser::ParseExtern())
+					{
+						if(auto *FnIR = ProtoAST->codegen())
+						{
+							AST::FunctionProtos[ProtoAST->Name()] = std::move(ProtoAST);
+						}
+					}
+					else
+						Lexer::GetNextToken();
+
+					break;
+	
+				case Token::TK_Struct:
+					if(auto StAST = Parser::ParseStruct())
+					{
+						if(auto *StIR = StAST->codegen())
+						{
+							Parser::AllStructs.push_back(std::move(StAST));
+						}
+					}
+					else
+						Lexer::GetNextToken();
+
+					break;
+	
+				default:
+					Lexer::GetNextToken();
+					break;
+			}
+		}
+	}
 };
 
 struct ParseTesting
 {
 	static std::vector<std::unique_ptr<AST::Function>> allParsedFunctions;
 
+	static void Shelf()
+	{
+		Parser::ParseShelf();
+	}
+	
 	static void Definition()
 	{
 		if(auto FnAST = Parser::ParseDefinition())
 		{
-			//std::cout << "Handling Definition...\n";
-
 			allParsedFunctions.push_back(std::move(FnAST));
-
-			//if(auto *FnIR = FnAST->codegen())
-			//{
-				//fprintf(stderr, "Parsed a function definition:\n\n");
-				//FnIR->print(llvm::errs());
-				//fprintf(stderr, "\n");
-			//}
-
-			//std::cout << "Finished Definition...\n";
 		}
 		else
 			Lexer::GetNextToken();
 	}
-
+	
 	static void Extern()
 	{
 		if(auto ProtoAST = Parser::ParseExtern())
 		{
-			//std::cout << "Handling Extern...\n";
-
 			if(auto *FnIR = ProtoAST->codegen())
 			{
-				//fprintf(stderr, "Parsed an extern:");
-				//FnIR->print(llvm::errs());
-				//fprintf(stderr, "\n");
-
 				AST::FunctionProtos[ProtoAST->Name()] = std::move(ProtoAST);
-				
-				//std::cout << "Finished Extern...\n";
 			}
 		}
 		else
 			Lexer::GetNextToken();
 	}
-
+	
 	static void Struct()
 	{
 		if(auto StAST = Parser::ParseStruct())
 		{
-			//std::cout << "Handling Definition...\n";
-
 			if(auto *StIR = StAST->codegen())
 			{
 				Parser::AllStructs.push_back(std::move(StAST));
 			}
-
-			//std::cout << "Finished Definition...\n";
 		}
 		else
 			Lexer::GetNextToken();
 	}
-
+	
 	static void TopLevelExpression()
 	{
 		if(auto FnAST = Parser::ParseTopLevelExpression())
 		{
-			//std::cout << "Handling Top Level Expression...\n";
-
 			if(auto *FnIR = FnAST->codegen())
 			{
-				//fprintf(stderr, "Parsed a top level expression:");
-				//FnIR->print(llvm::errs());
-				//fprintf(stderr, "\n");
-
 				FnIR->eraseFromParent();
 				return;
 			}
@@ -1481,7 +1602,7 @@ struct ParseTesting
 		else
 			Lexer::GetNextToken();
 	}
-
+	
 	static void CompileFunctions()
 	{
 		for(int i = 0; i < allParsedFunctions.size(); i++)
@@ -1490,5 +1611,10 @@ struct ParseTesting
 		}
 	}
 };
+
+void PushBackParsedFunction(std::unique_ptr<AST::Function> FnAST)
+{
+	ParseTesting::allParsedFunctions.push_back(std::move(FnAST));
+}
 
 #endif
