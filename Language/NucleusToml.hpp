@@ -4,11 +4,36 @@
 #include "../TOML++/toml.h"
 #include <iostream>
 #include "../String/StringAPI.hpp"
+#include <filesystem>
+
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 struct NucleusTOML
 {
 	static std::vector<std::string> folders;
 	static std::vector<std::string> CPPIncludes;
+
+	static std::string GetExecutableDirectory()
+	{
+		std::string getPathToExe;
+
+		#ifdef _WIN32
+
+			WCHAR path[MAX_PATH];
+			GetModuleFileNameW(NULL, path, MAX_PATH);
+
+			std::wstring ws(path);
+			std::string str(ws.begin(), ws.end());
+			getPathToExe = str;
+
+		#endif
+
+		std::filesystem::path p = getPathToExe.c_str();
+
+		return p.parent_path().u8string();
+	}
 
 	static int Read(std::string path)
 	{

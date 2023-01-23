@@ -132,6 +132,18 @@ int main(int argc, const char* argv[])
 
 	for(auto i : NucleusTOML::folders)
 	{
+		if(!std::filesystem::exists(i))
+		{
+				std::string getName = i;
+	 			i = NucleusTOML::GetExecutableDirectory() + "/" + i;
+
+	 			if(!std::filesystem::exists(i))
+	 			{
+	 				std::cout << "Error: Directory '" << getName << "' does not exist.\n";
+	 				exit(1);
+	 			}
+		}
+
 		for (const auto & entry : std::filesystem::directory_iterator(i))
 	 	{
 	 			if(entry.path().u8string().find(".toml") != std::string::npos)

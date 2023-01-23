@@ -31,7 +31,7 @@ shelf System
 		ptr bytesWritten: GENERIC;
 		ptr lpOverlapped: GENERIC;
 
-		# WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
+		WriteFile(GetHandle, getContent, StringLength(getContent), bytesWritten, lpOverlapped);
 	
 		0;
 	}
