@@ -10,20 +10,24 @@
 #include <Windows.h>
 #endif
 
-struct NucleusTOML {
+struct NucleusTOML
+{
 	static std::vector<std::string> folders;
 	static std::vector<std::string> CPPIncludes;
 
-	static std::string GetExecutableDirectory() {
+	static std::string GetExecutableDirectory()
+	{
 		std::string getPathToExe;
 
 		#ifdef _WIN32
+
 			WCHAR path[MAX_PATH];
 			GetModuleFileNameW(NULL, path, MAX_PATH);
 
 			std::wstring ws(path);
 			std::string str(ws.begin(), ws.end());
 			getPathToExe = str;
+
 		#endif
 
 		std::filesystem::path p = getPathToExe.c_str();
@@ -31,46 +35,55 @@ struct NucleusTOML {
 		return p.parent_path().u8string();
 	}
 
-	static int Read(std::string path) {
+	static int Read(std::string path)
+	{
 		toml::parse_result result = toml::parse_file(path.c_str());
-		if (!result) {
-			std::cout << "Parsing failed:\n" << result.error() << "\n";
-			return 1;
-		}
+    	if (!result)
+    	{
+    	    std::cout << "Parsing failed:\n" << result.error() << "\n";
+    	    return 1;
+    	}
 
-		toml::table tbl = std::move(result).table();
+    	toml::table tbl = std::move(result).table();
 
 		auto imports = tbl["imports"]["folders"];
 
-		if (toml::array* arr = imports.as_array()) {
-			// visitation with for_each() helps deal with heterogeneous data
-			arr->for_each([](auto&& el) {
-				if constexpr (toml::is_string<decltype(el)>) {
-					std::string s = el.get();
+		if (toml::array* arr = imports.as_array())
+    	{
+    	    // visitation with for_each() helps deal with heterogeneous data
+    	    arr->for_each([](auto&& el)
+    	    {
+    	        if constexpr (toml::is_string<decltype(el)>)
+    	        {
+    	        	std::string s = el.get();
 
-					s = StringAPI::RemoveAll(s, "'");
-					s = StringAPI::ReplaceAll(s, ".", "/");
+    	        	s = StringAPI::RemoveAll(s, "'");
+    	        	s = StringAPI::ReplaceAll(s, ".", "/");
 
-					//std::cout << "New Imported Folder: " << s << "\n";
+    	        	//std::cout << "New Imported Folder: " << s << "\n";
 
-					folders.push_back(s);
-				}
-			});
-		}
+    	            folders.push_back(s);
+    	        }
+    	    });
+    	}
 
-		auto cppincludes = tbl["imports.cpp"]["include"];
+    	auto cppincludes = tbl["imports.cpp"]["include"];
 
-		if (toml::array* arr = cppincludes.as_array()) {
-			// visitation with for_each() helps deal with heterogeneous data
-			arr->for_each([](auto&& el) {
-				if constexpr (toml::is_string<decltype(el)>) {
-					std::string s = el.get();
-					CPPIncludes.push_back(s);
-				}
-			});
-		}
+    	if (toml::array* arr = cppincludes.as_array())
+    	{
+    	    // visitation with for_each() helps deal with heterogeneous data
+    	    arr->for_each([](auto&& el)
+    	    {
+    	        if constexpr (toml::is_string<decltype(el)>)
+    	        {
+    	        	std::string s = el.get();
 
-		return 0;
+    	            CPPIncludes.push_back(s);
+    	        }
+    	    });
+    	}
+
+    	return 0;
 	}
 };
 

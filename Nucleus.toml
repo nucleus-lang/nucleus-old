@@ -11,6 +11,5 @@ version = "0.1.0"
 
 [imports]
 folders = [
-	"LocalFolder.ThatDoesntExist",
 	"Nucleus.System"
 ]
