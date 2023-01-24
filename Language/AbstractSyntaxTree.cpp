@@ -474,7 +474,10 @@ llvm::Function* AST::FunctionPrototype::codegen() {
 		else if (dynamic_cast<Float*>(i.first.get()) != nullptr)       llvmArgs.push_back(llvm::Type::getFloatTy(*CodeGeneration::TheContext));
 		else if (dynamic_cast<Array*>(i.first.get()) != nullptr)       llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if (dynamic_cast<NestedArray*>(i.first.get()) != nullptr) llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
-		else if (dynamic_cast<Generic*>(i.first.get()) != nullptr)     llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+
+		else if (dynamic_cast<Generic*>(i.first.get()) != nullptr ||
+				 dynamic_cast<Array*>(i.first.get()) != nullptr)     llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+			
 		else if (dynamic_cast<StructTy*>(type.get()) != nullptr) {
 				StructTy* getStruct = (StructTy*)type.get();
 				llvmArgs.push_back(getStruct->existingStruct);
