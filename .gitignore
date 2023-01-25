@@ -1,3 +1,6 @@
 # Snyk stuff
 .dccache
 
+# Compiler output
+*.exe
+*.ll
