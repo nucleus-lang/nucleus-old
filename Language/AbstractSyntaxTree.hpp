@@ -40,20 +40,15 @@ struct AST {
 		float floatValue = 0;
 		unsigned bit = 32;
 		std::string valueAsString;
-		Number(std::string val) 
-		{
+		Number(std::string val) {
 			//std::cout << "Number Input: " << val << "\n";
 			if(val.find(".") != std::string::npos) {
-				if(val.back() == 'f') {
-					isFloat = true;
-					floatValue = std::stof(val);
-				}
-				else {
-					isDouble = true;
-					doubleValue = std::stod(val);
-				}
-			}
-			else {
+				isFloat = val.back() == 'f';
+				isDouble = !isFloat;
+
+				if (isFloat) floatValue = std::stof(val);
+				else doubleValue = std::stod(val);
+			} else {
 				isInt = true;
 				intValue = std::stoi(val);
 			}
@@ -131,9 +126,8 @@ struct AST {
 		char secondOp = '\0';
 		std::unique_ptr<Expression> lhs, rhs;
 
-		Binary(SourceLocation Loc, char oper, std::unique_ptr<Expression> left,
-				std::unique_ptr<Expression> right)
-		: Expression(Loc), op(oper), lhs(std::move(left)), rhs(std::move(right)) {}
+		Binary(SourceLocation Loc, char oper, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
+			: Expression(Loc), op(oper), lhs(std::move(left)), rhs(std::move(right)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "binary" << op, index);
@@ -150,14 +144,13 @@ struct AST {
 		std::vector<std::unique_ptr<Expression>> arguments;
 
 		Call(SourceLocation Loc, const std::string& c, std::vector<std::unique_ptr<Expression>> args)
-		: Expression(Loc), callee(c), arguments(std::move(args)) {}
+			: Expression(Loc), callee(c), arguments(std::move(args)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "Call " << callee, index);
 
-			for(const auto& Arg : arguments) {
+			for(const auto& Arg : arguments)
 				Arg->Dump(Indent(out, index + 1), index + 1);
-			}
 
 			return out;
 		}
@@ -175,7 +168,7 @@ struct AST {
 		SourceLocation Location;
 
 		FunctionPrototype(SourceLocation Loc, std::unique_ptr<Expression> t, const std::string& n, std::vector<std::pair<std::unique_ptr<AST::Expression>, std::unique_ptr<AST::Variable>>> args, bool IsOperator = false, unsigned Prec = 0)
-		: type(std::move(t)), name(n), arguments(std::move(args)), IsOperator(IsOperator), Precedence(Prec), Line(Loc.Line) {}
+			: type(std::move(t)), name(n), arguments(std::move(args)), IsOperator(IsOperator), Precedence(Prec), Line(Loc.Line) {}
 
 		const std::string& Name() const { return name; }
 
@@ -203,7 +196,7 @@ struct AST {
 		std::unique_ptr<Expression> body;
 
 		Function(std::unique_ptr<FunctionPrototype> proto, std::unique_ptr<Expression> b)
-		: prototype(std::move(proto)), body(std::move(b)) {}
+			: prototype(std::move(proto)), body(std::move(b)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) {
 			Indent(out, index) << "Function\n";
@@ -219,8 +212,8 @@ struct AST {
 	struct If : public Expression {
 		std::unique_ptr<Expression> Condition, Then, Else;
 
-		If(SourceLocation Loc, std::unique_ptr<Expression> cond, std::unique_ptr<Expression> t, std::unique_ptr<Expression> e) :
-			Expression(Loc), Condition(std::move(cond)), Then(std::move(t)), Else(std::move(e)) {}
+		If(SourceLocation Loc, std::unique_ptr<Expression> cond, std::unique_ptr<Expression> t, std::unique_ptr<Expression> e)
+			: Expression(Loc), Condition(std::move(cond)), Then(std::move(t)), Else(std::move(e)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "if", index);
@@ -241,12 +234,8 @@ struct AST {
 
 		std::unique_ptr<Expression> Start, End, Step, Body, Next;
 
-		For(std::unique_ptr<Expression> Type,
-			const std::string &VarName, std::unique_ptr<Expression> Start,
-				 std::unique_ptr<Expression> End, std::unique_ptr<Expression> Step,
-				 std::unique_ptr<Expression> Body, std::unique_ptr<Expression> Next) : 
-		varType(std::move(Type)), varName(VarName), Start(std::move(Start)), End(std::move(End)),
-		  Step(std::move(Step)), Body(std::move(Body)), Next(std::move(Next)) {}
+		For(std::unique_ptr<Expression> Type, const std::string &VarName, std::unique_ptr<Expression> Start, std::unique_ptr<Expression> End, std::unique_ptr<Expression> Step, std::unique_ptr<Expression> Body, std::unique_ptr<Expression> Next)
+			: varType(std::move(Type)), varName(VarName), Start(std::move(Start)), End(std::move(End)), Step(std::move(Step)), Body(std::move(Body)), Next(std::move(Next)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "for", index);
@@ -267,7 +256,7 @@ struct AST {
 		std::unique_ptr<Expression> Operand;
 
 		Unary(char op, std::unique_ptr<Expression> oper)
-		: OpCode(op), Operand(std::move(oper)) {}
+			: OpCode(op), Operand(std::move(oper)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "unary" << OpCode, index);
@@ -289,18 +278,16 @@ struct AST {
 		std::vector<VarStruct> VarNames;
 		std::unique_ptr<Expression> Body;
 
-		Var(std::vector<VarStruct> vn, std::unique_ptr<Expression> b) :
-			Expression(Loc), VarNames(std::move(vn)), Body(std::move(b)) {}
+		Var(std::vector<VarStruct> vn, std::unique_ptr<Expression> b)
+			: Expression(Loc), VarNames(std::move(vn)), Body(std::move(b)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "var", index);
 
-			for(const auto& NamedVar : VarNames) {
+			for(const auto& NamedVar : VarNames)
 				NamedVar.body->Dump(Indent(out, index) << NamedVar.name << ":", index + 1);
-			}
 
 			Body->Dump(Indent(out, index) << "Body:", index + 1);
-
 			return out;
 		}
 
@@ -313,10 +300,8 @@ struct AST {
 		unsigned int size;
 		bool dynamicInitialization = false;
 
-		Array(std::unique_ptr<Expression> ty,
-			unsigned int s
-			) :
-			size(s), type(std::move(ty)) {}
+		Array(std::unique_ptr<Expression> ty, unsigned int s)
+			: size(s), type(std::move(ty)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "array", index);
@@ -335,8 +320,8 @@ struct AST {
 	struct ArrayInitContent : public Expression {
 		std::vector<std::unique_ptr<Expression>> variables;
 
-		ArrayInitContent(std::vector<std::unique_ptr<Expression>> v) :
-		variables(std::move(v)) {}
+		ArrayInitContent(std::vector<std::unique_ptr<Expression>> v)
+			: variables(std::move(v)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "arraycontent", index);
@@ -358,7 +343,8 @@ struct AST {
 		bool dynamicInitialization = false;
 		unsigned int size = 0;
 
-		NestedArray(std::unique_ptr<Expression> t, unsigned int s) : type(std::move(t)), size(s) {}
+		NestedArray(std::unique_ptr<Expression> t, unsigned int s)
+			: type(std::move(t)), size(s) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			Expression::Dump(out << "nestedarray", index);
@@ -377,8 +363,8 @@ struct AST {
 	struct NestedArrayContent : public Expression {
 		std::vector<std::unique_ptr<Expression>> variables;
 
-		NestedArrayContent(std::vector<std::unique_ptr<Expression>> v) :
-		variables(std::move(v)) {}
+		NestedArrayContent(std::vector<std::unique_ptr<Expression>> v)
+			: variables(std::move(v)) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			//Expression::Dump(out << "nestedarraycontent", index);
@@ -398,7 +384,8 @@ struct AST {
 		std::string structName;
 		llvm::StructType* existingStruct = nullptr;
 
-		StructTy(std::string sN, llvm::StructType* s) : structName(sN), existingStruct(s) {}
+		StructTy(std::string sN, llvm::StructType* s)
+			: structName(sN), existingStruct(s) {}
 
 		llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override {
 			//Expression::Dump(out << "nestedarraycontent", index);
@@ -419,8 +406,8 @@ struct AST {
 		std::vector<std::unique_ptr<Expression>> variables;
 		llvm::StructType* StructLLVM = nullptr;
 
-		StructEx(std::string n, std::vector<std::unique_ptr<Expression>> v) :
-		Name(n), variables(std::move(v)) {}
+		StructEx(std::string n, std::vector<std::unique_ptr<Expression>> v)
+			: Name(n), variables(std::move(v)) {}
 
 		//llvm::raw_ostream& Dump(llvm::raw_ostream& out, int index) override
 		//{
