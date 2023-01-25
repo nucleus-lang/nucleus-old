@@ -426,7 +426,8 @@ llvm::Function* AST::FunctionPrototype::codegen() {
 		else if (dynamic_cast<    Array*    >(i.first.get()) != nullptr) llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if (dynamic_cast< NestedArray* >(i.first.get()) != nullptr) llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
 		else if (dynamic_cast<  Generic*    >(i.first.get()) != nullptr) llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
-		else if (dynamic_cast<  StructTy*   >(type.get())   != nullptr) { StructTy* getStruct = (StructTy*)type.get(); llvmArgs.push_back(getStruct->existingStruct); }
+		else if (dynamic_cast<  Array*      >(i.first.get()) != nullptr) llvmArgs.push_back(llvm::PointerType::getUnqual(*CodeGeneration::TheContext));
+		else if (dynamic_cast<  StructTy*   >(type.get())    != nullptr) { StructTy* getStruct = (StructTy*)type.get(); llvmArgs.push_back(getStruct->existingStruct); }
 		else return CodeGeneration::LogErrorFLLVM("One of the argument types is unknown.");
 	}
 
