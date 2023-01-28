@@ -6,5 +6,5 @@
 # RobotoSkunk' command
 # Feel free to screenshot :D
 
-clang++ -g -O3 String/StringAPI.cpp Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `llvm-config --cxxflags --link-static --ldflags --system-libs --libs all` -fstack-protector -lssp -frtti -std=c++17 -static -o nucleus
+clang++ -g -O3 String/StringAPI.cpp Language/CodeGeneration.cpp Language/AbstractSyntaxTree.cpp main.cpp `llvm-config --cxxflags --link-static --ldflags --system-libs --libs all` -fstack-protector -lssp -frtti -std=c++17 -static -o build/nucleus
 
