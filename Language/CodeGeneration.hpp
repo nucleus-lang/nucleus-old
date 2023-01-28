@@ -74,6 +74,8 @@ struct CodeGeneration
 
 	static void CompileToObjectCode();
 
+	static int profile;
+
 	static std::unique_ptr<llvm::DIBuilder> DBuilder;
 
 	struct DebugInfo

@@ -105,7 +105,7 @@ extern "C" DLLEXPORT double printd(double X) {
   return 0;
 }
 
-int main(int argc, const char* argv[])
+void Compile(int profile)
 {
 	llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -185,6 +185,25 @@ int main(int argc, const char* argv[])
 	ParseTesting::CompileFunctions();
 
 	CodeGeneration::CompileToObjectCode();
+
+}
+
+int main(int argc, const char* argv[])
+{
+	for(int i = 0; i < argc; i++)
+	{
+		std::string arg = argv[i];
+		if(arg == "release")
+		{
+			std::cout << "Compiling Release...\n";
+			Compile(1);
+		}
+		else if(arg == "debug")
+		{
+			std::cout << "Compiling Debug...\n";
+			Compile(0);
+		}
+	}
 
 	return 0;
 }
